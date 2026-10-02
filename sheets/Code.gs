@@ -20,6 +20,7 @@ const SYNC_MINUTES = 5;
 const AVG_SHEET = "Team Averages";
 const MATCH_SHEET = "Match Data";
 const PIT_SHEET = "Pit Data";
+const ACC_SHEET = "Fuel Accuracy";
 
 // Point values, kept in step with index.html
 const CLIMB_PTS = { none: 0, fail: 0, L1: 10, L2: 20, L3: 30 };
@@ -71,7 +72,7 @@ function onEdit(e) {
 /** Run once: creates the tabs, the 5-minute sync, and does the first sync. */
 function setup() {
   const ss = SpreadsheetApp.getActive();
-  [AVG_SHEET, MATCH_SHEET, PIT_SHEET].forEach(n => { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
+  [AVG_SHEET, ACC_SHEET, MATCH_SHEET, PIT_SHEET].forEach(n => { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
   const avg = ss.getSheetByName(AVG_SHEET);
   if (!avg.getRange("A1").getValue()) {
     avg.getRange("A1:A3").setValues([["Event"], ["Sort by"], ["Order"]]).setFontWeight("bold");
@@ -97,6 +98,8 @@ function syncFromFirebase() {
   writeTable_(PIT_SHEET, PIT_COLS, pits.map(p => Object.assign({}, p, { saved: p.ts ? new Date(p.ts) : "" }))
     .sort((a, b) => a.team - b.team));
   buildAverages_();
+  try { buildAccuracy_(matches); }
+  catch (e) { writeAccuracyMessage_("Couldn't check accuracy: " + e.message); }
   const avg = SpreadsheetApp.getActive().getSheetByName(AVG_SHEET);
   avg.getRange("D1").setValue("Last synced " + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM d, h:mm a"))
     .setFontColor("#6d5f62");
@@ -289,4 +292,143 @@ function setDropdown_(range, values) {
   const current = range.getValue();
   range.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(values, true).setAllowInvalid(false).build());
   if (values.indexOf(current) < 0) range.setValue(values[0]);
+}
+
+
+/* ---------------- fuel accuracy vs The Blue Alliance ---------------- */
+
+const ACC_COLS = [
+  "Event", "Match", "Alliance", "Teams", "Robots scouted", "Scouts",
+  "Scouted auto", "Official auto", "Auto % error",
+  "Scouted teleop", "Official teleop", "Teleop % error",
+  "Scouted end game", "Official end game", "End game % error",
+  "Scouted total", "Official total", "Difference", "Total % error", "Status"
+];
+
+/** Reads the Blue Alliance key the app saved in Firestore (settings/tba). */
+function getTbaKey_() {
+  const url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/settings/tba";
+  const res = UrlFetchApp.fetch(url, {
+    headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken(), "X-Goog-User-Project": PROJECT_ID },
+    muteHttpExceptions: true
+  });
+  if (res.getResponseCode() !== 200) return "";
+  const f = JSON.parse(res.getContentText()).fields || {};
+  return f.key ? fromFirestoreValue_(f.key) : "";
+}
+
+function fetchTbaMatches_(eventKey, tbaKey) {
+  const res = UrlFetchApp.fetch("https://www.thebluealliance.com/api/v3/event/" + eventKey + "/matches", {
+    headers: { "X-TBA-Auth-Key": tbaKey }, muteHttpExceptions: true
+  });
+  const code = res.getResponseCode();
+  if (code === 404) return null;            // event code isn't a Blue Alliance event
+  if (code === 401) throw new Error("The Blue Alliance rejected the saved key. Re-save it in the app (Teams tab > Blue Alliance key).");
+  if (code !== 200) throw new Error("The Blue Alliance returned " + code + " for " + eventKey + ".");
+  return JSON.parse(res.getContentText());
+}
+
+function buildAccuracy_(scoutRows) {
+  const events = Array.from(new Set(scoutRows.map(r => r.event).filter(e => /^\d{4}[A-Za-z0-9]+$/.test(e))));
+  if (!events.length) { writeAccuracyMessage_("No events with a Blue Alliance event code yet. Use the event's Blue Alliance key (like 2026CABL) as the event code in the app."); return; }
+  const tbaKey = getTbaKey_();
+  if (!tbaKey) { writeAccuracyMessage_("No Blue Alliance key saved yet. Save it in the app: Teams tab > Blue Alliance key."); return; }
+  let rows = [], skipped = [];
+  events.forEach(ev => {
+    const tba = fetchTbaMatches_(ev.toLowerCase(), tbaKey);
+    if (!tba) { skipped.push(ev); return; }
+    rows = rows.concat(computeAccuracy_(tba, scoutRows.filter(r => r.event === ev), ev));
+  });
+  writeAccuracy_(rows, skipped);
+}
+
+/**
+ * Pure: TBA matches + scouting rows for one event -> one row per played qualification
+ * match alliance that has at least one scouted robot. Official fuel uses hubScore points
+ * (1 point per FUEL scored in an active HUB), which is what scouts count.
+ */
+function computeAccuracy_(tbaMatches, scoutRows, eventCode) {
+  const byMatchTeam = {};
+  scoutRows.forEach(r => { byMatchTeam[r.match + "_" + r.team] = r; });
+  const pctErr = (s, o) => o > 0 ? (s - o) / o : (s === 0 ? 0 : "");
+  const out = [];
+  tbaMatches
+    .filter(m => m.comp_level === "qm" && m.score_breakdown)
+    .sort((a, b) => a.match_number - b.match_number)
+    .forEach(m => {
+      ["red", "blue"].forEach(color => {
+        const bd = m.score_breakdown[color]; if (!bd || !bd.hubScore) return;
+        const h = bd.hubScore;
+        const n = k => Number(h[k]) || 0;
+        const offAuto = n("autoPoints");
+        const offTele = n("transitionPoints") + n("shift1Points") + n("shift2Points") + n("shift3Points") + n("shift4Points");
+        const offEnd = n("endgamePoints");
+        const teams = (m.alliances[color].team_keys || []).map(k => parseInt(String(k).replace(/^frc/, ""), 10));
+        const reps = teams.map(t => byMatchTeam[m.match_number + "_" + t]).filter(Boolean);
+        if (!reps.length) return;
+        const sum = f => reps.reduce((t, r) => t + (Number(r[f]) || 0), 0);
+        const sAuto = sum("autoFuel"), sTele = sum("teleFuel"), sEnd = sum("endFuel");
+        const sTot = sAuto + sTele + sEnd, oTot = offAuto + offTele + offEnd;
+        const missing = teams.length - reps.length;
+        out.push([
+          eventCode, m.match_number, color === "red" ? "Red" : "Blue", teams.join(", "),
+          reps.length + " of " + teams.length,
+          Array.from(new Set(reps.map(r => r.scout).filter(String))).join(", "),
+          sAuto, offAuto, pctErr(sAuto, offAuto),
+          sTele, offTele, pctErr(sTele, offTele),
+          sEnd, offEnd, pctErr(sEnd, offEnd),
+          sTot, oTot, sTot - oTot, pctErr(sTot, oTot),
+          missing ? "Missing " + missing + " robot" + (missing > 1 ? "s" : "") + " (error will read low)" : "Complete"
+        ]);
+      });
+    });
+  return out;
+}
+
+function accuracySheet_() {
+  const ss = SpreadsheetApp.getActive();
+  return ss.getSheetByName(ACC_SHEET) || ss.insertSheet(ACC_SHEET, 1);
+}
+
+function writeAccuracyMessage_(msg) {
+  const sh = accuracySheet_();
+  sh.clear();
+  sh.getRange("A1").setValue("Fuel Accuracy").setFontWeight("bold").setFontSize(14);
+  sh.getRange("A2").setValue(msg);
+}
+
+function writeAccuracy_(rows, skipped) {
+  const sh = accuracySheet_();
+  sh.clear();
+  const complete = rows.filter(r => r[19] === "Complete" && r[18] !== "");
+  const avgAbs = complete.length ? complete.reduce((t, r) => t + Math.abs(r[18]), 0) / complete.length : "";
+  sh.getRange("A1").setValue("Fuel Accuracy").setFontWeight("bold").setFontSize(14);
+  sh.getRange("A2:B4").setValues([
+    ["Alliances checked (all 3 robots scouted)", complete.length],
+    ["Average total % error (absolute)", avgAbs],
+    ["Color key", "Green within 10%, yellow within 25%, red over 25%. Positive % = scouts counted too many."]
+  ]);
+  sh.getRange("A2:A4").setFontWeight("bold");
+  sh.getRange("B3").setNumberFormat("0.0%");
+  if (skipped.length) sh.getRange("A5").setValue("Not on The Blue Alliance (skipped): " + skipped.join(", ")).setFontColor("#6d5f62");
+
+  const start = 7;
+  sh.getRange(start, 1, 1, ACC_COLS.length).setValues([ACC_COLS])
+    .setFontWeight("bold").setBackground("#810f27").setFontColor("#ffffff").setWrap(true);
+  sh.setFrozenRows(start);
+  if (!rows.length) { sh.getRange(start + 1, 1).setValue("No played matches with scouting reports yet."); return; }
+
+  sh.getRange(start + 1, 1, rows.length, ACC_COLS.length).setValues(rows);
+  [9, 12, 15, 19].forEach(c => sh.getRange(start + 1, c, rows.length, 1).setNumberFormat("+0.0%;-0.0%;0.0%"));
+  const color = v => {
+    if (v === "" || v == null) return null;
+    const a = Math.abs(v);
+    return a <= 0.10 ? "#d9f2e3" : a <= 0.25 ? "#fbf0c9" : "#f8d4d7";
+  };
+  [9, 12, 15, 19].forEach(c => {
+    const vals = sh.getRange(start + 1, c, rows.length, 1).getValues();
+    sh.getRange(start + 1, c, rows.length, 1).setBackgrounds(vals.map(r => [color(r[0])]));
+  });
+  sh.getRange(start + 1, 20, rows.length, 1).setFontColor("#6d5f62");
+  sh.autoResizeColumns(1, 6);
 }
