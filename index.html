@@ -118,7 +118,9 @@ tbody tr:last-child td{border-bottom:0}
 html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
 img{max-width:100%}
-.gate{max-width:420px;margin:12vh auto 0;padding-inline:16px;display:grid;gap:14px;text-align:center}
+.gate{max-width:420px;margin:6vh auto 0;padding-inline:16px;display:grid;gap:14px;text-align:center}
+.gate-logo{width:180px;height:auto;margin:0 auto;display:block}
+#loading .gate-logo{width:140px}
 .gate h1{font:700 34px/1 var(--display);text-transform:uppercase;letter-spacing:.03em;margin:0}
 .gate h1 span{color:var(--gold)}
 .gate p{color:var(--muted);margin:0}
@@ -131,6 +133,7 @@ img{max-width:100%}
 <body>
 
 <div class="gate" id="gate" hidden>
+  <img src="icons/logo-512.png" alt="Bishop Alemany RoboWarriors 2659 logo" width="180" height="180" class="gate-logo">
   <h1>2659 <span>REBUILT</span> Scout</h1>
   <p>Enter the team scouting passcode. You only need to do this once on each phone.</p>
   <form id="gateForm" autocomplete="off">
@@ -141,7 +144,7 @@ img{max-width:100%}
     </div>
   </form>
 </div>
-<div class="gate" id="loading"><p>Starting up…</p></div>
+<div class="gate" id="loading"><img src="icons/logo-512.png" alt="" width="140" height="140" class="gate-logo"><p>Starting up…</p></div>
 <div id="app" hidden>
 <header class="bar">
   <div class="bar-in">

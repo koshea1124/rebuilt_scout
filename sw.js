@@ -2,7 +2,7 @@
 // so it opens in the stands with no signal. Scouting data is handled by Firestore's own
 // offline cache, so this worker never touches database traffic.
 // Bump VERSION whenever you change index.html, config.js or other app files.
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE = "scout-" + VERSION;
 const SHELL = [
   "./",
@@ -11,7 +11,8 @@ const SHELL = [
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/apple-touch-icon.png",
+  "./icons/logo-512.png"
 ];
 const CDN = [
   "https://www.gstatic.com/firebasejs/",
