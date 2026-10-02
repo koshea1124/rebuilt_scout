@@ -21,6 +21,8 @@ const AVG_SHEET = "Team Averages";
 const MATCH_SHEET = "Match Data";
 const PIT_SHEET = "Pit Data";
 const ACC_SHEET = "Fuel Accuracy";
+const SCOUT_SHEET = "Scouter Accuracy";
+const MIN_CHECKS = 5;   // fewer checked alliances than this is flagged as a rough number
 
 // Point values, kept in step with index.html
 const CLIMB_PTS = { none: 0, fail: 0, L1: 10, L2: 20, L3: 30 };
@@ -72,7 +74,7 @@ function onEdit(e) {
 /** Run once: creates the tabs, the 5-minute sync, and does the first sync. */
 function setup() {
   const ss = SpreadsheetApp.getActive();
-  [AVG_SHEET, ACC_SHEET, MATCH_SHEET, PIT_SHEET].forEach(n => { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
+  [AVG_SHEET, ACC_SHEET, SCOUT_SHEET, MATCH_SHEET, PIT_SHEET].forEach(n => { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
   const avg = ss.getSheetByName(AVG_SHEET);
   if (!avg.getRange("A1").getValue()) {
     avg.getRange("A1:A3").setValues([["Event"], ["Sort by"], ["Order"]]).setFontWeight("bold");
@@ -340,6 +342,7 @@ function buildAccuracy_(scoutRows) {
     rows = rows.concat(computeAccuracy_(tba, scoutRows.filter(r => r.event === ev), ev));
   });
   writeAccuracy_(rows, skipped);
+  writeScoutAccuracy_(computeScoutAccuracy_(rows));
 }
 
 /**
@@ -370,7 +373,7 @@ function computeAccuracy_(tbaMatches, scoutRows, eventCode) {
         const sAuto = sum("autoFuel"), sTele = sum("teleFuel"), sEnd = sum("endFuel");
         const sTot = sAuto + sTele + sEnd, oTot = offAuto + offTele + offEnd;
         const missing = teams.length - reps.length;
-        out.push([
+        const row = [
           eventCode, m.match_number, color === "red" ? "Red" : "Blue", teams.join(", "),
           reps.length + " of " + teams.length,
           Array.from(new Set(reps.map(r => r.scout).filter(String))).join(", "),
@@ -379,7 +382,9 @@ function computeAccuracy_(tbaMatches, scoutRows, eventCode) {
           sEnd, offEnd, pctErr(sEnd, offEnd),
           sTot, oTot, sTot - oTot, pctErr(sTot, oTot),
           missing ? "Missing " + missing + " robot" + (missing > 1 ? "s" : "") + " (error will read low)" : "Complete"
-        ]);
+        ];
+        row.scouts = Array.from(new Set(reps.map(r => String(r.scout || "").trim()).filter(String)));
+        out.push(row);
       });
     });
   return out;
@@ -395,6 +400,10 @@ function writeAccuracyMessage_(msg) {
   sh.clear();
   sh.getRange("A1").setValue("Fuel Accuracy").setFontWeight("bold").setFontSize(14);
   sh.getRange("A2").setValue(msg);
+  const sc = scoutSheet_();
+  sc.clear();
+  sc.getRange("A1").setValue("Scouter Accuracy").setFontWeight("bold").setFontSize(14);
+  sc.getRange("A2").setValue(msg);
 }
 
 function writeAccuracy_(rows, skipped) {
@@ -431,4 +440,83 @@ function writeAccuracy_(rows, skipped) {
   });
   sh.getRange(start + 1, 20, rows.length, 1).setFontColor("#6d5f62");
   sh.autoResizeColumns(1, 6);
+}
+
+
+/* ---------------- scouter accuracy ---------------- */
+
+const SCOUT_COLS = [
+  "Scouter", "Alliances checked", "Avg total % error", "Avg auto % error", "Avg teleop % error",
+  "Avg end game % error", "Worst total % error", "Worst match", "Tends to count", "Note"
+];
+
+/**
+ * Pure: Fuel Accuracy rows -> one row per scouter, most accurate first.
+ * Every error is taken as an absolute value before averaging, so +11% and -11% average to 11%, not 0.
+ * Only alliances with all 3 robots scouted count. Each scouter on that alliance is given the
+ * alliance's error, because official fuel is only reported per alliance.
+ */
+function computeScoutAccuracy_(accRows) {
+  const by = {};
+  const has = v => v !== "" && v != null;
+  accRows.filter(r => r[19] === "Complete").forEach(r => {
+    (r.scouts || []).forEach(name => {
+      const key = name.toLowerCase();
+      const s = by[key] || (by[key] = { name: name, total: [], auto: [], tele: [], end: [], signed: [], worst: null });
+      if (has(r[8])) s.auto.push(Math.abs(r[8]));
+      if (has(r[11])) s.tele.push(Math.abs(r[11]));
+      if (has(r[14])) s.end.push(Math.abs(r[14]));
+      if (has(r[18])) {
+        s.total.push(Math.abs(r[18]));
+        s.signed.push(r[18]);
+        if (!s.worst || Math.abs(r[18]) > Math.abs(s.worst[18])) s.worst = r;
+      }
+    });
+  });
+  const avg = a => a.length ? a.reduce((t, x) => t + x, 0) / a.length : "";
+  return Object.keys(by).map(k => {
+    const s = by[k];
+    const bias = avg(s.signed);
+    const tends = s.signed.length < 2 ? "" : bias > 0.05 ? "Too many" : bias < -0.05 ? "Too few" : "About even";
+    return [
+      s.name, s.total.length, avg(s.total), avg(s.auto), avg(s.tele), avg(s.end),
+      s.worst ? Math.abs(s.worst[18]) : "",
+      s.worst ? s.worst[0] + " match " + s.worst[1] + " " + s.worst[2] : "",
+      tends,
+      s.total.length < MIN_CHECKS ? "Fewer than " + MIN_CHECKS + " checks, treat as rough" : ""
+    ];
+  }).filter(r => r[1] > 0).sort((a, b) => a[2] - b[2] || b[1] - a[1]);
+}
+
+function scoutSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  return ss.getSheetByName(SCOUT_SHEET) || ss.insertSheet(SCOUT_SHEET, 2);
+}
+
+function writeScoutAccuracy_(rows) {
+  const sh = scoutSheet_();
+  sh.clear();
+  sh.getRange("A1").setValue("Scouter Accuracy").setFontWeight("bold").setFontSize(14);
+  sh.getRange("A2:A4").setValues([
+    ["Average fuel error for the alliances each scouter helped scout, compared with The Blue Alliance. Most accurate first."],
+    ["Errors are absolute values, so over and under counts don't cancel out. Only alliances with all 3 robots scouted are counted."],
+    ["Official fuel is per alliance, so each number includes the other two scouters' mistakes. It gets fairer with more matches and when scouters rotate partners."]
+  ]).setFontColor("#6d5f62");
+
+  const start = 6;
+  sh.getRange(start, 1, 1, SCOUT_COLS.length).setValues([SCOUT_COLS])
+    .setFontWeight("bold").setBackground("#810f27").setFontColor("#ffffff").setWrap(true);
+  sh.setFrozenRows(start);
+  if (!rows.length) { sh.getRange(start + 1, 1).setValue("No alliances with all 3 robots scouted and an official score yet."); return; }
+
+  sh.getRange(start + 1, 1, rows.length, SCOUT_COLS.length).setValues(rows);
+  sh.getRange(start + 1, 3, rows.length, 5).setNumberFormat("0.0%");
+  const color = v => {
+    if (v === "" || v == null) return null;
+    return v <= 0.10 ? "#d9f2e3" : v <= 0.25 ? "#fbf0c9" : "#f8d4d7";
+  };
+  sh.getRange(start + 1, 3, rows.length, 1).setBackgrounds(rows.map(r => [color(r[2])]));
+  sh.getRange(start + 1, 10, rows.length, 1).setFontColor("#6d5f62");
+  sh.autoResizeColumns(1, 1);
+  sh.autoResizeColumns(8, 3);
 }

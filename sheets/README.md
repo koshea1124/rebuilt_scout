@@ -7,6 +7,7 @@ every 5 minutes and keeps a sortable **Team Averages** tab.
 | --- | --- |
 | Team Averages | One row per team: matches, avg/best estimated points, fuel by period, climb rates, top climb, defense %, foul points, driver rating, robot issues, plus drivetrain/shooter/capacity from pit scouting |
 | Fuel Accuracy | For each played qualification match and alliance: scouted vs official fuel (auto, teleop, end game, total) from The Blue Alliance, with % error |
+| Scouter Accuracy | One row per scouter: average absolute fuel % error (total, auto, teleop, end game) across the complete alliances they helped scout, most accurate first |
 | Match Data | Every match report, including per-shift fuel and inactive-hub roles |
 | Pit Data | Every pit report |
 
@@ -35,6 +36,14 @@ Use the Google account that created the Firebase project (it must be an owner or
 - % error = (scouted − official) ÷ official. Positive means scouts counted too many.
 - Fuel is only reported per alliance, so the fair comparison needs all 3 robots scouted ("Complete"). Rows missing robots will read low.
 - Green within 10%, yellow within 25%, red over 25%. The summary at the top averages the complete alliances.
+
+## Scouter Accuracy
+
+- Uses only "Complete" rows from Fuel Accuracy (all 3 robots scouted). Each scouter on that alliance gets the alliance's error.
+- Errors are absolute values before averaging, so +11% and −11% average to 11%.
+- Names are matched ignoring capitals and extra spaces ("Ana" = "ana ").
+- Each number includes the other two scouters' mistakes. Rotate who scouts together so it evens out, and treat rows flagged "Fewer than 5 checks" as rough (change `MIN_CHECKS` in `Code.gs`).
+- "Tends to count" shows whether their alliances usually came out high or low; it is a coaching hint, not part of the average.
 
 ## Notes
 

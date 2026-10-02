@@ -15,7 +15,7 @@ Handoff notes for whoever picks this up next, including a future Claude chat:
 - **Firebase project** `rebuilt-scouting-f33c1`: Firestore collections `matches`, `pit`, `schedules`,
   `members`, `config/secret` (passcode), `settings/tba` (Blue Alliance key). Rules in `firestore.rules`.
 - **Google Sheet sync** (`sheets/`): Team Averages (dropdown sort), Fuel Accuracy vs The Blue Alliance,
-  Match Data, Pit Data. Setup steps in `sheets/README.md`.
+  Scouter Accuracy (avg absolute fuel % error per scouter), Match Data, Pit Data. Setup steps in `sheets/README.md`.
 
 ## Open items
 
