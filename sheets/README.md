@@ -36,8 +36,7 @@ Use the Google account that created the Firebase project (it must be an owner or
 - No schedule yet (or planning a playoff alliance)? Type team numbers straight into the team row; the table updates.
 - **Stats from** switches between this event only and all events (handy early in an event).
 - Per robot: matches scouted, avg/best estimated points, avg/best fuel for auto, teleop, end game and total,
-  auto and end game climb %, top climb, avg tower points, defense %, foul points, driver rating, robot issues,
-  usual role when their hub is inactive, and drivetrain/shooter/capacity from pit scouting.
+  foul points given up, driver rating and matches with robot issues. (Edit `PREVIEW_STATS` in `Code.gs` to add or remove rows.)
 - Alliance columns add up the three robots (driver rating is averaged). Gold marks the alliance with the edge.
 - The projected score is the sum of each robot's average estimated points (fuel + tower). It ignores fouls and defense.
 - RP rows use the regional thresholds (100 and 360 fuel, 50 tower points); edit `RP_*` in `Code.gs` if they differ.

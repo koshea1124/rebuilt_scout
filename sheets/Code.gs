@@ -115,7 +115,7 @@ function syncFromFirebase() {
   try { buildAccuracy_(matches, sched); }
   catch (e) { writeAccuracyMessage_("Couldn't check accuracy: " + e.message); }
   writeTable_(SCHED_SHEET, SCHED_COLS, Object.keys(sched).map(k => sched[k])
-    .sort((a, b) => String(a.event).localeCompare(String(b.event)) || a.match - b.match));
+    .sort((a, b) => String(a.event).localeCompare(String(b.event)) || Number(a.match) - Number(b.match)));
   buildPreview_(false);
   const avg = SpreadsheetApp.getActive().getSheetByName(AVG_SHEET);
   avg.getRange("D1").setValue("Last synced " + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM d, h:mm a"))
@@ -572,6 +572,7 @@ function addTbaSchedule_(sched, ev, tbaMatches) {
 
 const PV_TEAM_ROW = 6;
 const PV_FIRST_STAT_ROW = 7;
+const PV_LIST_COL = 12;         // hidden column L: match numbers that feed the Match # dropdown
 const RP_ENERGIZED = 100, RP_SUPERCHARGED = 360, RP_TRAVERSAL = 50;   // regional thresholds from the game manual
 const ROLE_LABELS = { defense: "Defense", collect: "Collects fuel", feedMid: "Feeds from midzone",
                       feedOpp: "Feeds from opponent zone", feed: "Feeds partners", idle: "Idle" };
@@ -589,18 +590,9 @@ const PREVIEW_STATS = [
   { label: "End game fuel, best",           key: "endBest",      fmt: "0",   agg: "sum", better: "high" },
   { label: "Total fuel, average",           key: "totAvg",       fmt: "0.0", agg: "sum", better: "high" },
   { label: "Total fuel, best",              key: "totBest",      fmt: "0",   agg: "sum", better: "high" },
-  { label: "Auto climb %",                  key: "autoClimbPct", fmt: "0%" },
-  { label: "End game climb %",              key: "climbPct",     fmt: "0%" },
-  { label: "Top climb",                     key: "topClimb",     fmt: "@" },
-  { label: "Avg tower points",              key: "towerAvg",     fmt: "0.0", agg: "sum", better: "high" },
-  { label: "Defense played %",              key: "defensePct",   fmt: "0%" },
   { label: "Avg foul points given up",      key: "foulAvg",      fmt: "0.0", agg: "sum", better: "low" },
   { label: "Avg driver rating (1 to 5)",    key: "driverAvg",    fmt: "0.0", agg: "avg", better: "high" },
-  { label: "Matches with robot issues",     key: "issues",       fmt: "0",   agg: "sum", better: "low" },
-  { label: "Usual role when hub inactive",  key: "role",         fmt: "@" },
-  { label: "Drivetrain (pit)",              key: "drive",        fmt: "@" },
-  { label: "Shooter (pit)",                 key: "shooter",      fmt: "@" },
-  { label: "Fuel capacity (pit)",           key: "capacity",     fmt: "0" }
+  { label: "Matches with robot issues",     key: "issues",       fmt: "0",   agg: "sum", better: "low" }
 ];
 
 /** Pure: one team's preview numbers from Match Data rows (+ its pit row). */
@@ -709,15 +701,22 @@ function buildPreview_(fillTeams) {
   setDropdown_(sh.getRange("B3"), ["This event", "All events"]);
   sh.getRange("B1:B3").setBackground("#f6efd9").setHorizontalAlignment("left");
   const event = String(sh.getRange("B1").getValue() || "");
-  const evSched = sched.filter(r => r.event === event).sort((a, b) => a.match - b.match);
+  const evSched = sched.filter(r => r.event === event && !isNaN(Number(r.match)))
+    .sort((a, b) => Number(a.match) - Number(b.match));
   const mCell = sh.getRange("B2");
+  // The dropdown reads its choices from a hidden column of real numbers, already in numeric order,
+  // so it lists 1, 2, 3 ... 10, 11 instead of 1, 10, 100.
+  sh.getRange(1, PV_LIST_COL, sh.getMaxRows(), 1).clearContent();
   if (evSched.length) {
+    const listRange = sh.getRange(1, PV_LIST_COL, evSched.length, 1);
+    listRange.setValues(evSched.map(r => [Number(r.match)])).setNumberFormat("0");
     mCell.setDataValidation(SpreadsheetApp.newDataValidation()
-      .requireValueInList(evSched.map(r => String(r.match)), true).setAllowInvalid(true).build());
-    if (mCell.getValue() === "") mCell.setValue(evSched[0].match);
+      .requireValueInRange(listRange, true).setAllowInvalid(true).build());
+    if (mCell.getValue() === "") mCell.setValue(Number(evSched[0].match));
   } else {
     mCell.clearDataValidations();
   }
+  sh.hideColumns(PV_LIST_COL);
   const matchNo = Number(mCell.getValue()) || "";
 
   // teams: from the schedule when a match is picked, otherwise whatever is typed in the team row
