@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isScout() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/members/$(request.auth.uid));
+    }
+
+    // The team passcode lives in config/secret (field "code").
+    // No phone can ever read or change it; set it in the Firebase console.
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    // A phone joins the team once by writing the correct passcode.
+    match /members/{uid} {
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.code ==
+           get(/databases/$(database)/documents/config/secret).data.code;
+      allow read: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Scouting data: only phones that joined can read and write.
+    match /matches/{id} {
+      allow read, write: if isScout();
+    }
+    match /pit/{id} {
+      allow read, write: if isScout();
+    }
+  }
+}

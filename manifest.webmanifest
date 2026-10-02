@@ -1,0 +1,16 @@
+{
+  "name": "RoboWarriors REBUILT Scout",
+  "short_name": "2659 Scout",
+  "description": "Match and pit scouting for FRC 2026 REBUILT, Team 2659 RoboWarriors.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e131b",
+  "theme_color": "#0e131b",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

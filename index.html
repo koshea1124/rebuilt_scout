@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e131b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="2659 Scout">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>RoboWarriors REBUILT Scout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: phone-first scouting tool. Sticky top bar with event + tabs; one panel per tab; big tap targets in the stands. */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --sunk:#e8ecf2; --line:#d3d9e2;
+  --fg:#141b26; --muted:#5b6678; --accent:#e0a100; --accent-ink:#1a1400;
+  --red:#d23a3a; --blue:#2c63d6; --good:#1f8a4c; --warn:#b26a00;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e131b; --surface:#161d28; --sunk:#1e2633; --line:#2c3646;
+  --fg:#e8edf4; --muted:#93a0b4; --accent:#f2b51c; --accent-ink:#1a1400;
+  --red:#ef5b5b; --blue:#5b8cf0; --good:#3fb873; --warn:#e2a03a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131b; --surface:#161d28; --sunk:#1e2633; --line:#2c3646;
+  --fg:#e8edf4; --muted:#93a0b4; --accent:#f2b51c; --accent-ink:#1a1400;
+  --red:#ef5b5b; --blue:#5b8cf0; --good:#3fb873; --warn:#e2a03a; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--body);margin:0}
+.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:12px 48px}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar-in{max-width:760px;margin:0 auto;padding:10px 16px 0;display:grid;gap:8px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand h1{font:700 22px/1 var(--display);letter-spacing:.02em;margin:0;text-transform:uppercase}
+.brand h1 span{color:var(--accent)}
+.event{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.event input{width:110px;font:500 14px var(--mono);text-transform:uppercase}
+nav.tabs{display:flex;gap:4px}
+nav.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:10px 4px;font:700 17px var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.status{font-size:12px;color:var(--muted);margin:10px 0 0}
+.status.err{color:var(--red)}
+
+section.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:12px;display:grid;gap:12px}
+h2{font:700 18px/1.1 var(--display);letter-spacing:.05em;text-transform:uppercase;margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2 small{font:500 12px var(--body);letter-spacing:0;text-transform:none;color:var(--muted)}
+label.f{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:0}
+input,select,textarea{font:15px var(--body);color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%}
+textarea{min-height:70px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+
+/* segmented choice */
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1 1 auto;min-height:44px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--sunk);color:var(--fg);font:600 14px var(--body);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg.alliance button[data-v="red"][aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff}
+.seg.alliance button[data-v="blue"][aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* counters */
+.counter{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:8px;background:var(--sunk);border-radius:var(--r);padding:8px}
+.counter .lbl{font-size:13px;font-weight:600}
+.counter .lbl small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.counter .val{font:500 30px/1 var(--mono);text-align:center;font-variant-numeric:tabular-nums;min-width:2.2ch}
+.counter button{min-width:52px;min-height:52px;border-radius:10px;border:0;font:700 20px var(--display);cursor:pointer}
+.counter .minus{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
+.counter .plus{background:var(--accent);color:var(--accent-ink)}
+.counter .plus5{background:var(--surface);color:var(--fg);border:1px solid var(--accent)}
+.counter.fuel{grid-template-columns:1fr auto auto auto auto}
+@media (max-width:420px){.counter.fuel{grid-template-columns:auto 1fr auto auto}.counter.fuel .lbl{grid-column:1/-1}}
+.counter.small .val{font-size:22px}
+.counter.small button{min-width:44px;min-height:44px;font-size:18px}
+
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{min-height:48px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:700 17px var(--display);letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);flex:1}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:10;max-width:calc(100% - 32px)}
+
+/* dashboard */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:9px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--sunk);cursor:pointer;user-select:none;position:sticky;top:0}
+th[aria-sort]{color:var(--fg)}
+th:first-child,td:first-child{text-align:left}
+td.team{font:500 15px var(--mono)}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--sunk)}
+tbody tr:last-child td{border-bottom:0}
+.bar-cell{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.bar-cell i{display:block;height:6px;border-radius:3px;background:var(--accent);opacity:.8}
+.empty{color:var(--muted);text-align:center;padding:24px 12px}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--sunk)}
+.pill.l3{background:var(--good);color:#fff}.pill.l2{background:var(--blue);color:#fff}.pill.l1{background:var(--sunk)}
+.pill.bad{background:var(--red);color:#fff}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.kv div{background:var(--sunk);border-radius:8px;padding:8px 10px}
+.kv b{display:block;font:500 20px var(--mono)}
+.kv span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.note{font-size:13px;color:var(--muted);margin:0}
+.list{display:grid;gap:8px}
+.list .m{background:var(--sunk);border-radius:8px;padding:8px 10px;display:grid;gap:4px;font-size:14px}
+.list .m .top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+.gate{max-width:420px;margin:12vh auto 0;padding-inline:16px;display:grid;gap:14px;text-align:center}
+.gate h1{font:700 34px/1 var(--display);text-transform:uppercase;letter-spacing:.03em;margin:0}
+.gate h1 span{color:var(--accent)}
+.gate p{color:var(--muted);margin:0}
+.gate input{text-align:center;font:500 20px var(--mono)}
+.gate .err{color:var(--red);min-height:1.4em}
+.status.ok::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px}
+.status.off::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn);margin-right:6px}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate" hidden>
+  <h1>2659 <span>REBUILT</span> Scout</h1>
+  <p>Enter the team scouting passcode. You only need to do this once on each phone.</p>
+  <form id="gateForm" autocomplete="off">
+    <div style="display:grid;gap:10px">
+      <label class="f" for="gateCode" style="text-align:left">Team passcode<input id="gateCode" required autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+      <button type="submit" class="btn primary" id="gateBtn">Join the scouting team</button>
+      <div class="err" id="gateErr"></div>
+    </div>
+  </form>
+</div>
+<div class="gate" id="loading"><p>Starting up…</p></div>
+<div id="app" hidden>
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand">
+      <h1>2659 <span>REBUILT</span> Scout</h1>
+      <label class="event" for="eventCode">Event <input id="eventCode" maxlength="20" placeholder="TIDAL26" autocomplete="off"></label>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="match" aria-selected="true">Match</button>
+      <button role="tab" data-tab="pit" aria-selected="false">Pit</button>
+      <button role="tab" data-tab="teams" aria-selected="false">Teams</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="status" id="status">Connecting…</p>
+
+  <!-- MATCH SCOUTING -->
+  <div id="tab-match">
+    <form id="matchForm" autocomplete="off">
+      <section class="card">
+        <h2>Match setup</h2>
+        <div class="row">
+          <label class="f" for="mScout">Scout name<input id="mScout" required maxlength="30"></label>
+          <label class="f" for="mMatch">Match #<input id="mMatch" type="number" inputmode="numeric" min="1" max="200" required></label>
+          <label class="f" for="mTeam">Team #<input id="mTeam" type="number" inputmode="numeric" min="1" max="99999" required></label>
+        </div>
+        <div class="seg alliance" data-field="alliance">
+          <button type="button" data-v="red" aria-pressed="false">Red</button>
+          <button type="button" data-v="blue" aria-pressed="false">Blue</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Auto <small>0:20</small></h2>
+        <div class="counter fuel" data-count="autoFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <div class="seg" data-field="autoClimb">
+          <button type="button" data-v="none" aria-pressed="true">No auto climb</button>
+          <button type="button" data-v="L1" aria-pressed="false">Tower L1 (15)</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Teleop shifts <small>2:20 to 0:30</small></h2>
+        <p class="note">Count only fuel that lands in their alliance's hub while it is active.</p>
+        <div class="counter fuel" data-count="teleFuel"><div class="lbl">Fuel scored<small>Transition + shifts 1 to 4</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <label class="f">Inactive shifts: what did they do?</label>
+        <div class="seg" data-field="inactiveRole">
+          <button type="button" data-v="collect" aria-pressed="false">Collected fuel</button>
+          <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
+          <button type="button" data-v="feed" aria-pressed="false">Fed partners</button>
+          <button type="button" data-v="idle" aria-pressed="false">Idle</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>End game <small>0:30</small></h2>
+        <div class="counter fuel" data-count="endFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <label class="f">Tower climb</label>
+        <div class="seg" data-field="climb">
+          <button type="button" data-v="none" aria-pressed="true">None</button>
+          <button type="button" data-v="fail" aria-pressed="false">Tried, failed</button>
+          <button type="button" data-v="L1" aria-pressed="false">L1 (10)</button>
+          <button type="button" data-v="L2" aria-pressed="false">L2 (20)</button>
+          <button type="button" data-v="L3" aria-pressed="false">L3 (30)</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Robot &amp; drivers</h2>
+        <label class="f">Defense played</label>
+        <div class="seg" data-field="defense">
+          <button type="button" data-v="0" aria-pressed="true">None</button>
+          <button type="button" data-v="1" aria-pressed="false">Some</button>
+          <button type="button" data-v="2" aria-pressed="false">Heavy</button>
+        </div>
+        <label class="f">Driver skill</label>
+        <div class="seg" data-field="driver">
+          <button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="3" aria-pressed="true">3</button><button type="button" data-v="4" aria-pressed="false">4</button><button type="button" data-v="5" aria-pressed="false">5</button>
+        </div>
+        <label class="f">Robot status</label>
+        <div class="seg" data-field="robot">
+          <button type="button" data-v="ok" aria-pressed="true">Worked</button>
+          <button type="button" data-v="brownout" aria-pressed="false">Lost power</button>
+          <button type="button" data-v="disabled" aria-pressed="false">Disabled / no show</button>
+          <button type="button" data-v="tipped" aria-pressed="false">Tipped</button>
+        </div>
+        <div class="row">
+          <div class="counter small" data-count="minor"><div class="lbl">Minor fouls<small>5 pts each</small></div><button type="button" class="minus">−</button><div class="val">0</div><button type="button" class="plus">+</button></div>
+          <div class="counter small" data-count="major"><div class="lbl">Major fouls<small>15 pts each</small></div><button type="button" class="minus">−</button><div class="val">0</div><button type="button" class="plus">+</button></div>
+        </div>
+        <label class="f" for="mNotes">Notes<textarea id="mNotes" maxlength="600" placeholder="Fast cycles from the depot, jammed once in shift 3…"></textarea></label>
+      </section>
+
+      <div class="actions" style="margin-top:12px">
+        <button type="button" class="btn" id="mReset">Clear</button>
+        <button type="submit" class="btn primary" id="mSubmit">Submit match</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- PIT SCOUTING -->
+  <div id="tab-pit" hidden>
+    <form id="pitForm" autocomplete="off">
+      <section class="card">
+        <h2>Pit scouting <small id="pitExisting"></small></h2>
+        <div class="row">
+          <label class="f" for="pTeam">Team #<input id="pTeam" type="number" inputmode="numeric" min="1" max="99999" required></label>
+          <label class="f" for="pScout">Scout name<input id="pScout" maxlength="30" required></label>
+        </div>
+        <label class="f">Drivetrain</label>
+        <div class="seg" data-field="drive">
+          <button type="button" data-v="swerve" aria-pressed="false">Swerve</button>
+          <button type="button" data-v="tank" aria-pressed="false">Tank / West Coast</button>
+          <button type="button" data-v="mecanum" aria-pressed="false">Mecanum</button>
+          <button type="button" data-v="other" aria-pressed="false">Other</button>
+        </div>
+        <label class="f">Fuel intake</label>
+        <div class="seg" data-field="intake">
+          <button type="button" data-v="ground" aria-pressed="false">Ground</button>
+          <button type="button" data-v="outpost" aria-pressed="false">Outpost / human player</button>
+          <button type="button" data-v="both" aria-pressed="false">Both</button>
+        </div>
+        <label class="f">Shooter</label>
+        <div class="seg" data-field="shooter">
+          <button type="button" data-v="turret" aria-pressed="false">Turret</button>
+          <button type="button" data-v="fixed" aria-pressed="false">Fixed shooter</button>
+          <button type="button" data-v="dump" aria-pressed="false">Close dump</button>
+        </div>
+        <div class="row">
+          <label class="f" for="pCap">Fuel capacity<input id="pCap" type="number" inputmode="numeric" min="0" max="200"></label>
+          <label class="f" for="pAuto">Auto fuel (claimed)<input id="pAuto" type="number" inputmode="numeric" min="0" max="200"></label>
+          <label class="f" for="pWeight">Weight (lb)<input id="pWeight" type="number" inputmode="decimal" min="0" max="200"></label>
+        </div>
+        <label class="f">Highest climb</label>
+        <div class="seg" data-field="maxClimb">
+          <button type="button" data-v="none" aria-pressed="false">None</button>
+          <button type="button" data-v="L1" aria-pressed="false">L1</button>
+          <button type="button" data-v="L2" aria-pressed="false">L2</button>
+          <button type="button" data-v="L3" aria-pressed="false">L3</button>
+        </div>
+        <label class="f">Can climb in auto</label>
+        <div class="seg" data-field="autoClimbCap">
+          <button type="button" data-v="no" aria-pressed="false">No</button>
+          <button type="button" data-v="yes" aria-pressed="false">Yes</button>
+        </div>
+        <label class="f" for="pNotes">Notes<textarea id="pNotes" maxlength="800" placeholder="Strategy they prefer, known issues, programming language…"></textarea></label>
+      </section>
+      <div class="actions" style="margin-top:12px">
+        <button type="button" class="btn" id="pReset">Clear</button>
+        <button type="submit" class="btn primary" id="pSubmit">Save pit report</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- TEAMS -->
+  <div id="tab-teams" hidden>
+    <section class="card">
+      <h2>Team rankings <small id="teamCount"></small></h2>
+      <p class="note">Est. points = fuel + tower points from scouted matches, averaged. Tap a column to sort, tap a team for details.</p>
+      <div class="tablewrap"><table id="teamTable"><thead></thead><tbody></tbody></table></div>
+    </section>
+    <section class="card" id="teamDetail" hidden></section>
+  </div>
+</main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script type="module">
+import { firebaseConfig } from "./config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, getDoc, onSnapshot, query, limit } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+
+(function(){
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  const store = { get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}} };
+  const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const CLIMB_PTS = {none:0, fail:0, L1:10, L2:20, L3:30};
+
+  let db = null, matches = [], pits = [], canWrite = true;
+  let sortKey = "pts", sortDir = -1, selectedTeam = null;
+
+  /* ---------- tabs ---------- */
+  function showTab(t){
+    $$("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===t)));
+    ["match","pit","teams"].forEach(x=>$("#tab-"+x).hidden = x!==t);
+    store.set("tab", t);
+    if (t==="teams") renderTeams();
+  }
+  $$("nav.tabs button").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
+
+  /* ---------- event + scout name (per device) ---------- */
+  const evInput = $("#eventCode");
+  evInput.value = store.get("event") || "";
+  const cleanEvent = () => (evInput.value||"").toUpperCase().replace(/[^A-Z0-9_-]/g,"");
+  evInput.addEventListener("change",()=>{ evInput.value = cleanEvent(); store.set("event", evInput.value); renderTeams(); });
+  ["#mScout","#pScout"].forEach(id=>{ $(id).value = store.get("scout")||""; $(id).addEventListener("change",e=>{store.set("scout", e.target.value.trim()); $("#mScout").value=$("#pScout").value=e.target.value.trim();}); });
+
+  /* ---------- segmented buttons ---------- */
+  function segValue(form, field){ const b = form.querySelector(`.seg[data-field="${field}"] button[aria-pressed="true"]`); return b ? b.dataset.v : null; }
+  function setSeg(form, field, v){ form.querySelectorAll(`.seg[data-field="${field}"] button`).forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.v===v))); }
+  $$(".seg").forEach(seg=>seg.addEventListener("click",e=>{
+    const b = e.target.closest("button"); if(!b) return;
+    seg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+  }));
+
+  /* ---------- counters ---------- */
+  const counts = {autoFuel:0, teleFuel:0, endFuel:0, minor:0, major:0};
+  function paintCounts(){ $$(".counter[data-count]").forEach(c=>{ const v=c.querySelector(".val"); if(v) v.textContent = counts[c.dataset.count]; }); }
+  $$(".counter[data-count]").forEach(c=>c.addEventListener("click",e=>{
+    const b = e.target.closest("button"); if(!b) return;
+    const k = c.dataset.count;
+    const d = b.classList.contains("plus5") ? 5 : b.classList.contains("plus") ? 1 : -1;
+    counts[k] = Math.max(0, Math.min(500, counts[k] + d));
+    paintCounts();
+  }));
+
+  /* ---------- toast + status ---------- */
+  let tt; function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true, 2600); }
+  function status(msg, err){ const s=$("#status"); s.textContent=msg; s.classList.toggle("err", !!err); }
+
+  /* ---------- match form ---------- */
+  const mf = $("#matchForm");
+  function resetMatch(keepSetup){
+    Object.keys(counts).forEach(k=>counts[k]=0); paintCounts();
+    setSeg(mf,"autoClimb","none"); setSeg(mf,"inactiveRole",null); setSeg(mf,"climb","none");
+    setSeg(mf,"defense","0"); setSeg(mf,"driver","3"); setSeg(mf,"robot","ok");
+    $("#mNotes").value = "";
+    if(!keepSetup){ $("#mTeam").value=""; setSeg(mf,"alliance",null); }
+  }
+  $("#mReset").addEventListener("click",()=>resetMatch(false));
+  mf.addEventListener("submit", async e=>{
+    e.preventDefault();
+    const ev = cleanEvent(); const match = parseInt($("#mMatch").value,10); const team = parseInt($("#mTeam").value,10);
+    const scout = $("#mScout").value.trim(); const alliance = segValue(mf,"alliance");
+    if(!ev){ toast("Enter the event code at the top first."); evInput.focus(); return; }
+    if(!scout||!match||!team){ toast("Fill in scout name, match # and team #."); return; }
+    if(!alliance){ toast("Pick Red or Blue alliance."); return; }
+        const rec = { event:ev, match, team, alliance, scout,
+      autoFuel:counts.autoFuel, autoClimb:segValue(mf,"autoClimb")==="L1",
+      teleFuel:counts.teleFuel, inactiveRole:segValue(mf,"inactiveRole")||"",
+      endFuel:counts.endFuel, climb:segValue(mf,"climb")||"none",
+      defense:+segValue(mf,"defense"), driver:+segValue(mf,"driver"), robot:segValue(mf,"robot"),
+      minor:counts.minor, major:counts.major, notes:$("#mNotes").value.trim().slice(0,600), ts:Date.now() };
+    const btn=$("#mSubmit"); btn.disabled=true;
+    try{
+      const how = await save(doc(db, "matches", `${ev}_${match}_${team}`), rec);
+      toast(how==="synced" ? `Saved match ${match}, team ${team}.` : `Match ${match} saved on this phone. It will upload when you have signal.`);
+      $("#mMatch").value = match + 1; resetMatch(false); window.scrollTo({top:0});
+    }catch(err){ toast(writeError(err)); }
+    finally{ btn.disabled=false; }
+  });
+
+  /* ---------- pit form ---------- */
+  const pf = $("#pitForm");
+  const pitFields = ["drive","intake","shooter","maxClimb","autoClimbCap"];
+  function resetPit(){ pitFields.forEach(f=>setSeg(pf,f,null)); ["#pCap","#pAuto","#pWeight","#pNotes","#pTeam"].forEach(i=>$(i).value=""); $("#pitExisting").textContent=""; }
+  $("#pReset").addEventListener("click", resetPit);
+  $("#pTeam").addEventListener("change",()=>{
+    const t=parseInt($("#pTeam").value,10); const p=pits.find(x=>x.team===t);
+    $("#pitExisting").textContent = p ? "Editing saved report" : "";
+    if(p){ pitFields.forEach(f=>setSeg(pf,f,p[f]||null)); $("#pCap").value=p.capacity??""; $("#pAuto").value=p.autoFuel??""; $("#pWeight").value=p.weight??""; $("#pNotes").value=p.notes||""; }
+  });
+  pf.addEventListener("submit", async e=>{
+    e.preventDefault();
+    const team=parseInt($("#pTeam").value,10); const scout=$("#pScout").value.trim();
+    if(!team||!scout){ toast("Fill in team # and scout name."); return; }
+        const num = id => { const v=$(id).value; return v==="" ? null : Number(v); };
+    const rec = { team, scout, capacity:num("#pCap"), autoFuel:num("#pAuto"), weight:num("#pWeight"), notes:$("#pNotes").value.trim().slice(0,800), ts:Date.now() };
+    pitFields.forEach(f=>rec[f]=segValue(pf,f)||"");
+    const btn=$("#pSubmit"); btn.disabled=true;
+    try{ const how = await save(doc(db, "pit", String(team)), rec); toast(how==="synced" ? `Saved pit report for ${team}.` : `Pit report for ${team} saved on this phone. It will upload when you have signal.`); resetPit(); }
+    catch(err){ toast(writeError(err)); }
+    finally{ btn.disabled=false; }
+  });
+
+  function save(ref, data){
+    const p = setDoc(ref, data);
+    p.catch(err=>toast(writeError(err)));
+    return Promise.race([ p.then(()=>"synced"), new Promise(r=>setTimeout(()=>r("queued"), 2500)) ]);
+  }
+  function writeError(err){
+    if(err && err.code==="permission-denied") return "This phone isn't allowed to save. Re-enter the team passcode (clear the site data and reopen the app).";
+    if(err && err.code==="resource-exhausted") return "The database hit its daily limit. Tell the lead scout.";
+    return "Couldn't save. Tap Submit again.";
+  }
+
+  /* ---------- analysis ---------- */
+  const pts = m => m.autoFuel + (m.autoClimb?15:0) + m.teleFuel + m.endFuel + (CLIMB_PTS[m.climb]||0);
+  const avg = a => a.length ? a.reduce((s,x)=>s+x,0)/a.length : 0;
+  function teamStats(){
+    const ev = cleanEvent();
+    const ms = matches.filter(m=>!ev || m.event===ev);
+    const by = {};
+    ms.forEach(m=>{ (by[m.team] ||= []).push(m); });
+    return Object.entries(by).map(([team,list])=>{
+      const climbs = list.map(m=>m.climb);
+      const best = ["L3","L2","L1"].find(l=>climbs.includes(l)) || "none";
+      return { team:+team, n:list.length,
+        pts: avg(list.map(pts)), max: Math.max(...list.map(pts)),
+        auto: avg(list.map(m=>m.autoFuel)), tele: avg(list.map(m=>m.teleFuel)), end: avg(list.map(m=>m.endFuel)),
+        climbPct: list.filter(m=>["L1","L2","L3"].includes(m.climb)).length/list.length, best,
+        fouls: avg(list.map(m=>m.minor*5+m.major*15)),
+        broke: list.filter(m=>m.robot!=="ok").length, driver: avg(list.map(m=>m.driver||0)), list };
+    });
+  }
+  const COLS = [
+    ["team","Team"],["n","Matches"],["pts","Est. pts"],["max","Best"],["auto","Auto fuel"],["tele","Teleop fuel"],["end","End fuel"],["climbPct","Climb %"],["best","Top climb"],["fouls","Foul pts"],["driver","Driver"]
+  ];
+  function renderTeams(){
+    if ($("#tab-teams").hidden) return;
+    const rows = teamStats();
+    const maxPts = Math.max(1, ...rows.map(r=>r.pts));
+    const rank = {none:0,L1:1,L2:2,L3:3};
+    rows.sort((a,b)=>{ const va = sortKey==="best"?rank[a.best]:a[sortKey], vb = sortKey==="best"?rank[b.best]:b[sortKey]; return (va>vb?1:va<vb?-1:0)*sortDir; });
+    $("#teamCount").textContent = rows.length ? `${rows.length} teams · ${rows.reduce((s,r)=>s+r.n,0)} match reports` + (cleanEvent()?` at ${cleanEvent()}`:"") : "";
+    $("#teamTable thead").innerHTML = "<tr>"+COLS.map(([k,l])=>`<th data-k="${k}"${k===sortKey?` aria-sort="${sortDir<0?"descending":"ascending"}"`:""}>${l}${k===sortKey?(sortDir<0?" ↓":" ↑"):""}</th>`).join("")+"</tr>";
+    const f1 = x=>x.toFixed(1);
+    $("#teamTable tbody").innerHTML = rows.length ? rows.map(r=>`<tr data-team="${r.team}">
+      <td class="team">${r.team}</td><td>${r.n}</td>
+      <td><div class="bar-cell"><i style="width:${Math.round(r.pts/maxPts*48)}px"></i>${f1(r.pts)}</div></td>
+      <td>${r.max}</td><td>${f1(r.auto)}</td><td>${f1(r.tele)}</td><td>${f1(r.end)}</td>
+      <td>${Math.round(r.climbPct*100)}%</td><td>${climbPill(r.best)}</td>
+      <td>${r.fouls?`<span class="pill bad">${f1(r.fouls)}</span>`:"0"}</td><td>${f1(r.driver)}</td></tr>`).join("")
+      : `<tr><td colspan="${COLS.length}" class="empty">No match reports${cleanEvent()?" for "+esc(cleanEvent()):""} yet. Scouts add them from the Match tab, and teams show up here as soon as they're saved.</td></tr>`;
+    if (selectedTeam) renderDetail(selectedTeam, rows);
+  }
+  function climbPill(c){ return c==="none" ? `<span class="pill">None</span>` : `<span class="pill ${c.toLowerCase()}">${c}</span>`; }
+  $("#teamTable thead").addEventListener("click",e=>{ const th=e.target.closest("th"); if(!th) return; const k=th.dataset.k; if(k===sortKey) sortDir*=-1; else { sortKey=k; sortDir = k==="team"?1:-1; } renderTeams(); });
+  $("#teamTable tbody").addEventListener("click",e=>{ const tr=e.target.closest("tr[data-team]"); if(!tr) return; selectedTeam=+tr.dataset.team; renderTeams(); $("#teamDetail").scrollIntoView({behavior:"smooth",block:"start"}); });
+
+  const LABEL = {swerve:"Swerve",tank:"Tank / WCD",mecanum:"Mecanum",other:"Other",ground:"Ground",outpost:"Outpost",both:"Ground + outpost",turret:"Turret",fixed:"Fixed",dump:"Close dump",collect:"Collected",defense:"Defense",feed:"Fed partners",idle:"Idle",ok:"Worked",brownout:"Lost power",disabled:"Disabled",tipped:"Tipped",fail:"Failed"};
+  function renderDetail(team, rows){
+    const d=$("#teamDetail"); const r=rows.find(x=>x.team===team); const p=pits.find(x=>x.team===team);
+    if(!r && !p){ d.hidden=true; return; }
+    d.hidden=false;
+    const f1=x=>x.toFixed(1);
+    let html = `<h2>Team ${team} <small><button type="button" class="btn" id="closeDetail" style="min-height:32px;font-size:14px">Close</button></small></h2>`;
+    if(r) html += `<div class="kv">
+      <div><span>Avg est. pts</span><b>${f1(r.pts)}</b></div><div><span>Best match</span><b>${r.max}</b></div>
+      <div><span>Avg auto fuel</span><b>${f1(r.auto)}</b></div><div><span>Avg teleop fuel</span><b>${f1(r.tele)}</b></div>
+      <div><span>Climb rate</span><b>${Math.round(r.climbPct*100)}%</b></div><div><span>Robot issues</span><b>${r.broke} / ${r.n}</b></div></div>`;
+    if(p) html += `<div><h2 style="font-size:15px">Pit report <small>by ${esc(p.scout)}</small></h2>
+      <p class="note" style="margin-top:6px">${[LABEL[p.drive],p.intake&&("Intake: "+LABEL[p.intake]),p.shooter&&("Shooter: "+LABEL[p.shooter]),p.capacity!=null&&("Holds "+p.capacity+" fuel"),p.maxClimb&&("Climb up to "+(p.maxClimb==="none"?"none":p.maxClimb)),p.autoClimbCap==="yes"&&"Climbs in auto",p.autoFuel!=null&&("Claims "+p.autoFuel+" auto fuel"),p.weight!=null&&(p.weight+" lb")].filter(Boolean).map(esc).join(" · ")||"No details"}</p>
+      ${p.notes?`<p style="margin:6px 0 0">${esc(p.notes)}</p>`:""}</div>`;
+    else html += `<p class="note">No pit report yet.</p>`;
+    if(r) html += `<div class="list">`+ r.list.slice().sort((a,b)=>a.match-b.match).map(m=>`<div class="m"><div class="top">
+      <b>Match ${m.match} <span class="pill" style="background:var(--${m.alliance});color:#fff">${m.alliance}</span></b>
+      <span>${pts(m)} pts · ${climbPill(m.climb==="fail"?"none":m.climb)}${m.robot!=="ok"?` <span class="pill bad">${LABEL[m.robot]}</span>`:""}</span></div>
+      <div class="note">Auto ${m.autoFuel}${m.autoClimb?" + L1":""} · Teleop ${m.teleFuel} · End ${m.endFuel}${m.inactiveRole?" · Inactive: "+LABEL[m.inactiveRole]:""}${m.minor||m.major?` · Fouls ${m.minor}m/${m.major}M`:""} · ${esc(m.scout)}</div>
+      ${m.notes?`<div>${esc(m.notes)}</div>`:""}</div>`).join("")+`</div>`;
+    d.innerHTML = html;
+    $("#closeDetail").addEventListener("click",()=>{ selectedTeam=null; d.hidden=true; });
+  }
+
+  /* ---------- database ---------- */
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+
+  let pendM = 0, pendP = 0;
+  function netStatus(){
+    const pending = pendM + pendP;
+    const online = navigator.onLine;
+    const s = $("#status");
+    s.classList.remove("err","ok","off");
+    s.classList.add(online && !pending ? "ok" : "off");
+    s.textContent = !online
+      ? `Offline. Reports save on this phone${pending?` (${pending} waiting to upload)`:""} and upload when you have signal.`
+      : pending ? `Uploading ${pending} report${pending>1?"s":""}…` : "Online. Reports save to the team database.";
+  }
+  addEventListener("online", netStatus); addEventListener("offline", netStatus);
+
+  let started = false;
+  function startData(){
+    if (started) return; started = true;
+    $("#loading").hidden = true; $("#gate").hidden = true; $("#app").hidden = false;
+    netStatus();
+    onSnapshot(query(collection(db,"matches"), limit(2000)), { includeMetadataChanges:true },
+      s=>{ matches = s.docs.map(d=>d.data()); pendM = s.docs.filter(d=>d.metadata.hasPendingWrites).length; netStatus(); renderTeams(); },
+      e=>status("Couldn't load match data. Reload the app.", true));
+    onSnapshot(query(collection(db,"pit"), limit(1000)), { includeMetadataChanges:true },
+      s=>{ pits = s.docs.map(d=>d.data()); pendP = s.docs.filter(d=>d.metadata.hasPendingWrites).length; netStatus(); renderTeams(); },
+      e=>status("Couldn't load pit data. Reload the app.", true));
+  }
+  function showGate(msg){
+    $("#loading").hidden = true; $("#app").hidden = true; $("#gate").hidden = false;
+    $("#gateErr").textContent = msg || "";
+  }
+
+  onAuthStateChanged(auth, async user=>{
+    if (!user) {
+      try { await signInAnonymously(auth); }
+      catch(e){ showGate(navigator.onLine ? "Couldn't sign in. Check that anonymous sign-in is turned on in Firebase." : "Connect to the internet the first time you open the app."); }
+      return;
+    }
+    if (store.get("member:"+user.uid) === "yes") { startData(); return; }
+    try {
+      const m = await getDoc(doc(db, "members", user.uid));
+      if (m.exists()) { store.set("member:"+user.uid, "yes"); startData(); }
+      else showGate();
+    } catch(e){ showGate(navigator.onLine ? "" : "Connect to the internet to enter the passcode."); }
+  });
+
+  $("#gateForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const code = $("#gateCode").value.trim(); const user = auth.currentUser;
+    if (!code) return;
+    if (!user) { $("#gateErr").textContent = "Still signing in. Try again in a few seconds."; return; }
+    if (!navigator.onLine) { $("#gateErr").textContent = "Connect to the internet to join."; return; }
+    const btn = $("#gateBtn"); btn.disabled = true; $("#gateErr").textContent = "";
+    try {
+      await setDoc(doc(db, "members", user.uid), { code, joined: Date.now() });
+      store.set("member:"+user.uid, "yes");
+      startData();
+    } catch(err){
+      $("#gateErr").textContent = err && err.code==="permission-denied" ? "That passcode isn't right. Check with your lead scout." : "Couldn't join. Check your connection and try again.";
+    } finally { btn.disabled = false; }
+  });
+
+  showTab(store.get("tab")||"match");
+  paintCounts();
+})();
+</script>
+</body>
+</html>
