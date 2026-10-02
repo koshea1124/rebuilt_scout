@@ -2,7 +2,7 @@
 // so it opens in the stands with no signal. Scouting data is handled by Firestore's own
 // offline cache, so this worker never touches database traffic.
 // Bump VERSION whenever you change index.html, config.js or other app files.
-const VERSION = "v4";
+const VERSION = "v5";
 const CACHE = "scout-" + VERSION;
 const SHELL = [
   "./",
