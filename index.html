@@ -208,11 +208,12 @@ img{max-width:100%}
       <section class="card">
         <h2>Teleop shift 1 <small><span class="hubpill" data-hub="1" hidden></span>2:10 to 1:45</small></h2>
         <div class="counter fuel" data-count="s1Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
-        <label class="f">If their hub was inactive, what did they do?</label>
+        <label class="f">Hub Inactive - What did they do?</label>
         <div class="seg" data-field="s1Role">
-          <button type="button" data-v="collect" aria-pressed="false">Collected fuel</button>
           <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
-          <button type="button" data-v="feed" aria-pressed="false">Fed partners</button>
+          <button type="button" data-v="collect" aria-pressed="false">Only collected fuel</button>
+          <button type="button" data-v="feedMid" aria-pressed="false">Fed fuel from midzone/collected</button>
+          <button type="button" data-v="feedOpp" aria-pressed="false">Fed fuel from opponent zone/collected</button>
           <button type="button" data-v="idle" aria-pressed="false">Idle</button>
         </div>
       </section>
@@ -220,11 +221,12 @@ img{max-width:100%}
       <section class="card">
         <h2>Teleop shift 2 <small><span class="hubpill" data-hub="2" hidden></span>1:45 to 1:20</small></h2>
         <div class="counter fuel" data-count="s2Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
-        <label class="f">If their hub was inactive, what did they do?</label>
+        <label class="f">Hub Inactive - What did they do?</label>
         <div class="seg" data-field="s2Role">
-          <button type="button" data-v="collect" aria-pressed="false">Collected fuel</button>
           <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
-          <button type="button" data-v="feed" aria-pressed="false">Fed partners</button>
+          <button type="button" data-v="collect" aria-pressed="false">Only collected fuel</button>
+          <button type="button" data-v="feedMid" aria-pressed="false">Fed fuel from midzone/collected</button>
+          <button type="button" data-v="feedOpp" aria-pressed="false">Fed fuel from opponent zone/collected</button>
           <button type="button" data-v="idle" aria-pressed="false">Idle</button>
         </div>
       </section>
@@ -232,11 +234,12 @@ img{max-width:100%}
       <section class="card">
         <h2>Teleop shift 3 <small><span class="hubpill" data-hub="3" hidden></span>1:20 to 0:55</small></h2>
         <div class="counter fuel" data-count="s3Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
-        <label class="f">If their hub was inactive, what did they do?</label>
+        <label class="f">Hub Inactive - What did they do?</label>
         <div class="seg" data-field="s3Role">
-          <button type="button" data-v="collect" aria-pressed="false">Collected fuel</button>
           <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
-          <button type="button" data-v="feed" aria-pressed="false">Fed partners</button>
+          <button type="button" data-v="collect" aria-pressed="false">Only collected fuel</button>
+          <button type="button" data-v="feedMid" aria-pressed="false">Fed fuel from midzone/collected</button>
+          <button type="button" data-v="feedOpp" aria-pressed="false">Fed fuel from opponent zone/collected</button>
           <button type="button" data-v="idle" aria-pressed="false">Idle</button>
         </div>
       </section>
@@ -244,11 +247,12 @@ img{max-width:100%}
       <section class="card">
         <h2>Teleop shift 4 <small><span class="hubpill" data-hub="4" hidden></span>0:55 to 0:30</small></h2>
         <div class="counter fuel" data-count="s4Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
-        <label class="f">If their hub was inactive, what did they do?</label>
+        <label class="f">Hub Inactive - What did they do?</label>
         <div class="seg" data-field="s4Role">
-          <button type="button" data-v="collect" aria-pressed="false">Collected fuel</button>
           <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
-          <button type="button" data-v="feed" aria-pressed="false">Fed partners</button>
+          <button type="button" data-v="collect" aria-pressed="false">Only collected fuel</button>
+          <button type="button" data-v="feedMid" aria-pressed="false">Fed fuel from midzone/collected</button>
+          <button type="button" data-v="feedOpp" aria-pressed="false">Fed fuel from opponent zone/collected</button>
           <button type="button" data-v="idle" aria-pressed="false">Idle</button>
         </div>
       </section>
@@ -565,7 +569,7 @@ if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").ca
   $("#teamTable thead").addEventListener("click",e=>{ const th=e.target.closest("th"); if(!th) return; const k=th.dataset.k; if(k===sortKey) sortDir*=-1; else { sortKey=k; sortDir = k==="team"?1:-1; } renderTeams(); });
   $("#teamTable tbody").addEventListener("click",e=>{ const tr=e.target.closest("tr[data-team]"); if(!tr) return; selectedTeam=+tr.dataset.team; renderTeams(); $("#teamDetail").scrollIntoView({behavior:"smooth",block:"start"}); });
 
-  const LABEL = {swerve:"Swerve",tank:"Tank / WCD",mecanum:"Mecanum",other:"Other",ground:"Ground",outpost:"Outpost",both:"Ground + outpost",turret:"Turret",fixed:"Fixed",dump:"Close dump",collect:"Collected",defense:"Defense",feed:"Fed partners",idle:"Idle",ok:"Worked",brownout:"Lost power",disabled:"Disabled",tipped:"Tipped",fail:"Failed"};
+  const LABEL = {swerve:"Swerve",tank:"Tank / WCD",mecanum:"Mecanum",other:"Other",ground:"Ground",outpost:"Outpost",both:"Ground + outpost",turret:"Turret",fixed:"Fixed",dump:"Close dump",collect:"Only collected",defense:"Defense",feed:"Fed partners",feedMid:"Fed from midzone",feedOpp:"Fed from opp. zone",idle:"Idle",ok:"Worked",brownout:"Lost power",disabled:"Disabled",tipped:"Tipped",fail:"Failed"};
   function renderDetail(team, rows){
     const d=$("#teamDetail"); const r=rows.find(x=>x.team===team); const p=pits.find(x=>x.team===team);
     if(!r && !p){ d.hidden=true; return; }
