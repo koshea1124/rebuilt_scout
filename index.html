@@ -188,10 +188,15 @@ img{max-width:100%}
         </div>
       </section>
 
-      <p class="note" style="margin:14px 2px 0">Teleop: count only fuel that lands in their alliance's hub while it is active. Each alliance's hub is inactive for two of the four shifts.</p>
+      <p class="note" style="margin:14px 2px 0">Teleop: count only fuel that lands in their alliance's hub while it is active. Both hubs are active during the transition shift; after that, each alliance's hub is inactive for two of the four shifts.</p>
       <section class="card">
-        <h2>Teleop shift 1 <small>2:20 to 1:45</small></h2>
-        <div class="counter fuel" data-count="s1Fuel"><div class="lbl">Fuel scored<small>Includes the transition period</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <h2>Transition shift <small>2:20 to 2:10</small></h2>
+        <div class="counter fuel" data-count="transFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+      </section>
+
+      <section class="card">
+        <h2>Teleop shift 1 <small>2:10 to 1:45</small></h2>
+        <div class="counter fuel" data-count="s1Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
         <label class="f">If their hub was inactive, what did they do?</label>
         <div class="seg" data-field="s1Role">
           <button type="button" data-v="collect" aria-pressed="false">Collected fuel</button>
@@ -394,7 +399,7 @@ if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").ca
 
   /* ---------- counters ---------- */
   const SHIFTS = [1,2,3,4];
-  const counts = {autoFuel:0, s1Fuel:0, s2Fuel:0, s3Fuel:0, s4Fuel:0, endFuel:0, minor:0, major:0};
+  const counts = {autoFuel:0, transFuel:0, s1Fuel:0, s2Fuel:0, s3Fuel:0, s4Fuel:0, endFuel:0, minor:0, major:0};
   function paintCounts(){ $$(".counter[data-count]").forEach(c=>{ const v=c.querySelector(".val"); if(v) v.textContent = counts[c.dataset.count]; }); }
   $$(".counter[data-count]").forEach(c=>c.addEventListener("click",e=>{
     const b = e.target.closest("button"); if(!b) return;
@@ -428,7 +433,8 @@ if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").ca
         const rec = { event:ev, match, team, alliance, scout,
       autoFuel:counts.autoFuel, autoClimb:segValue(mf,"autoClimb")==="L1",
       shiftFuel:SHIFTS.map(n=>counts["s"+n+"Fuel"]), shiftRole:SHIFTS.map(n=>segValue(mf,"s"+n+"Role")||""),
-      teleFuel:SHIFTS.reduce((t,n)=>t+counts["s"+n+"Fuel"],0),
+      transFuel:counts.transFuel,
+      teleFuel:counts.transFuel + SHIFTS.reduce((t,n)=>t+counts["s"+n+"Fuel"],0),
       endFuel:counts.endFuel, climb:segValue(mf,"climb")||"none",
       defense:+segValue(mf,"defense"), driver:+segValue(mf,"driver"), robot:segValue(mf,"robot"),
       minor:counts.minor, major:counts.major, notes:$("#mNotes").value.trim().slice(0,600), ts:Date.now() };
@@ -537,7 +543,7 @@ if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").ca
     if(r) html += `<div class="list">`+ r.list.slice().sort((a,b)=>a.match-b.match).map(m=>`<div class="m"><div class="top">
       <b>Match ${m.match} <span class="pill" style="background:var(--${m.alliance});color:#fff">${m.alliance}</span></b>
       <span>${pts(m)} pts · ${climbPill(m.climb==="fail"?"none":m.climb)}${m.robot!=="ok"?` <span class="pill bad">${LABEL[m.robot]}</span>`:""}</span></div>
-      <div class="note">Auto ${m.autoFuel}${m.autoClimb?" + L1":""} · Teleop ${m.teleFuel}${m.shiftFuel?` (${m.shiftFuel.map((f,i)=>"S"+(i+1)+" "+f+(m.shiftRole&&m.shiftRole[i]?" "+LABEL[m.shiftRole[i]].toLowerCase():"")).join(", ")})`:""} · End ${m.endFuel}${m.inactiveRole?" · Inactive: "+LABEL[m.inactiveRole]:""}${m.minor||m.major?` · Fouls ${m.minor}m/${m.major}M`:""} · ${esc(m.scout)}</div>
+      <div class="note">Auto ${m.autoFuel}${m.autoClimb?" + L1":""} · Teleop ${m.teleFuel}${m.shiftFuel?` (${m.transFuel!=null?"T "+m.transFuel+", ":""}${m.shiftFuel.map((f,i)=>"S"+(i+1)+" "+f+(m.shiftRole&&m.shiftRole[i]?" "+LABEL[m.shiftRole[i]].toLowerCase():"")).join(", ")})`:""} · End ${m.endFuel}${m.inactiveRole?" · Inactive: "+LABEL[m.inactiveRole]:""}${m.minor||m.major?` · Fouls ${m.minor}m/${m.major}M`:""} · ${esc(m.scout)}</div>
       ${m.notes?`<div>${esc(m.notes)}</div>`:""}</div>`).join("")+`</div>`;
     d.innerHTML = html;
     $("#closeDetail").addEventListener("click",()=>{ selectedTeam=null; d.hidden=true; });
