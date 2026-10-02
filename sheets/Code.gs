@@ -22,6 +22,8 @@ const MATCH_SHEET = "Match Data";
 const PIT_SHEET = "Pit Data";
 const ACC_SHEET = "Fuel Accuracy";
 const SCOUT_SHEET = "Scouter Accuracy";
+const PREVIEW_SHEET = "Match Preview";
+const SCHED_SHEET = "Schedule";
 const MIN_CHECKS = 5;   // fewer checked alliances than this is flagged as a rough number
 
 // Point values, kept in step with index.html
@@ -66,15 +68,21 @@ function onOpen() {
 
 /** Re-sorts / re-filters Team Averages when a dropdown at the top changes. */
 function onEdit(e) {
-  const sh = e.range.getSheet();
-  if (sh.getName() !== AVG_SHEET) return;
-  if (e.range.getRow() <= 3 && e.range.getColumn() === 2) buildAverages_();
+  const name = e.range.getSheet().getName();
+  const r = e.range.getRow(), c = e.range.getColumn();
+  if (name === AVG_SHEET) {
+    if (r <= 3 && c === 2) buildAverages_();
+  } else if (name === PREVIEW_SHEET) {
+    if (c === 2 && r <= 2) buildPreview_(true);                                 // new event or match: pull its teams
+    else if (c === 2 && r === 3) buildPreview_(false);                          // stats from this event / all events
+    else if (r === PV_TEAM_ROW && c >= 2 && c <= 9) buildPreview_(false);       // a team number was typed in
+  }
 }
 
 /** Run once: creates the tabs, the 5-minute sync, and does the first sync. */
 function setup() {
   const ss = SpreadsheetApp.getActive();
-  [AVG_SHEET, ACC_SHEET, SCOUT_SHEET, MATCH_SHEET, PIT_SHEET].forEach(n => { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
+  [AVG_SHEET, PREVIEW_SHEET, ACC_SHEET, SCOUT_SHEET, MATCH_SHEET, PIT_SHEET, SCHED_SHEET].forEach(n => { if (!ss.getSheetByName(n)) ss.insertSheet(n); });
   const avg = ss.getSheetByName(AVG_SHEET);
   if (!avg.getRange("A1").getValue()) {
     avg.getRange("A1:A3").setValues([["Event"], ["Sort by"], ["Order"]]).setFontWeight("bold");
@@ -87,6 +95,8 @@ function setup() {
   const def = ss.getSheetByName("Sheet1");
   if (def && ss.getSheets().length > 3 && def.getLastRow() === 0) ss.deleteSheet(def);
   syncFromFirebase();
+  const pvw = ss.getSheetByName(PREVIEW_SHEET);
+  if (pvw) { ss.setActiveSheet(pvw); ss.moveActiveSheet(2); }
   ss.setActiveSheet(avg);
 }
 
@@ -100,8 +110,13 @@ function syncFromFirebase() {
   writeTable_(PIT_SHEET, PIT_COLS, pits.map(p => Object.assign({}, p, { saved: p.ts ? new Date(p.ts) : "" }))
     .sort((a, b) => a.team - b.team));
   buildAverages_();
-  try { buildAccuracy_(matches); }
+  const sched = {};
+  try { addAppSchedules_(sched, fetchCollection_("schedules")); } catch (e) { /* no schedules loaded in the app yet */ }
+  try { buildAccuracy_(matches, sched); }
   catch (e) { writeAccuracyMessage_("Couldn't check accuracy: " + e.message); }
+  writeTable_(SCHED_SHEET, SCHED_COLS, Object.keys(sched).map(k => sched[k])
+    .sort((a, b) => String(a.event).localeCompare(String(b.event)) || a.match - b.match));
+  buildPreview_(false);
   const avg = SpreadsheetApp.getActive().getSheetByName(AVG_SHEET);
   avg.getRange("D1").setValue("Last synced " + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM d, h:mm a"))
     .setFontColor("#6d5f62");
@@ -330,7 +345,7 @@ function fetchTbaMatches_(eventKey, tbaKey) {
   return JSON.parse(res.getContentText());
 }
 
-function buildAccuracy_(scoutRows) {
+function buildAccuracy_(scoutRows, sched) {
   const events = Array.from(new Set(scoutRows.map(r => r.event).filter(e => /^\d{4}[A-Za-z0-9]+$/.test(e))));
   if (!events.length) { writeAccuracyMessage_("No events with a Blue Alliance event code yet. Use the event's Blue Alliance key (like 2026CABL) as the event code in the app."); return; }
   const tbaKey = getTbaKey_();
@@ -339,6 +354,7 @@ function buildAccuracy_(scoutRows) {
   events.forEach(ev => {
     const tba = fetchTbaMatches_(ev.toLowerCase(), tbaKey);
     if (!tba) { skipped.push(ev); return; }
+    if (sched) addTbaSchedule_(sched, ev, tba);
     rows = rows.concat(computeAccuracy_(tba, scoutRows.filter(r => r.event === ev), ev));
   });
   writeAccuracy_(rows, skipped);
@@ -519,4 +535,240 @@ function writeScoutAccuracy_(rows) {
   sh.getRange(start + 1, 10, rows.length, 1).setFontColor("#6d5f62");
   sh.autoResizeColumns(1, 1);
   sh.autoResizeColumns(8, 3);
+}
+
+
+/* ---------------- match schedule (for Match Preview) ---------------- */
+
+const SCHED_COLS = [
+  ["event", "Event"], ["match", "Match"], ["red1", "Red 1"], ["red2", "Red 2"], ["red3", "Red 3"],
+  ["blue1", "Blue 1"], ["blue2", "Blue 2"], ["blue3", "Blue 3"]
+];
+
+function schedRow_(event, match, red, blue) {
+  const t = (a, i) => (a && a[i] != null && a[i] !== "") ? Number(a[i]) : "";
+  return { event: event, match: Number(match), red1: t(red, 0), red2: t(red, 1), red3: t(red, 2),
+           blue1: t(blue, 0), blue2: t(blue, 1), blue3: t(blue, 2) };
+}
+
+/** Schedules the app saved in Firestore (Teams tab > Load schedule). */
+function addAppSchedules_(sched, docs) {
+  docs.forEach(d => {
+    const ev = String(d.eventKey || "").toUpperCase();
+    if (!ev) return;
+    (d.matches || []).forEach(m => { sched[ev + "|" + m.n] = schedRow_(ev, m.n, m.red, m.blue); });
+  });
+}
+
+/** Qualification schedule straight from The Blue Alliance match list. */
+function addTbaSchedule_(sched, ev, tbaMatches) {
+  const nums = keys => (keys || []).map(k => parseInt(String(k).replace(/^frc/, ""), 10));
+  tbaMatches.filter(m => m.comp_level === "qm").forEach(m => {
+    sched[ev + "|" + m.match_number] = schedRow_(ev, m.match_number, nums(m.alliances.red.team_keys), nums(m.alliances.blue.team_keys));
+  });
+}
+
+/* ---------------- match preview ---------------- */
+
+const PV_TEAM_ROW = 6;
+const PV_FIRST_STAT_ROW = 7;
+const RP_ENERGIZED = 100, RP_SUPERCHARGED = 360, RP_TRAVERSAL = 50;   // regional thresholds from the game manual
+const ROLE_LABELS = { defense: "Defense", collect: "Collects fuel", feedMid: "Feeds from midzone",
+                      feedOpp: "Feeds from opponent zone", feed: "Feeds partners", idle: "Idle" };
+
+// agg: how the alliance column is built. better: which alliance value gets highlighted.
+const PREVIEW_STATS = [
+  { label: "Matches scouted",               key: "n",            fmt: "0" },
+  { label: "Avg est. points",               key: "avgPts",       fmt: "0.0", agg: "sum", better: "high" },
+  { label: "Best est. points",              key: "bestPts",      fmt: "0",   agg: "sum", better: "high" },
+  { label: "Auto fuel, average",            key: "autoAvg",      fmt: "0.0", agg: "sum", better: "high" },
+  { label: "Auto fuel, best",               key: "autoBest",     fmt: "0",   agg: "sum", better: "high" },
+  { label: "Teleop fuel, average",          key: "teleAvg",      fmt: "0.0", agg: "sum", better: "high" },
+  { label: "Teleop fuel, best",             key: "teleBest",     fmt: "0",   agg: "sum", better: "high" },
+  { label: "End game fuel, average",        key: "endAvg",       fmt: "0.0", agg: "sum", better: "high" },
+  { label: "End game fuel, best",           key: "endBest",      fmt: "0",   agg: "sum", better: "high" },
+  { label: "Total fuel, average",           key: "totAvg",       fmt: "0.0", agg: "sum", better: "high" },
+  { label: "Total fuel, best",              key: "totBest",      fmt: "0",   agg: "sum", better: "high" },
+  { label: "Auto climb %",                  key: "autoClimbPct", fmt: "0%" },
+  { label: "End game climb %",              key: "climbPct",     fmt: "0%" },
+  { label: "Top climb",                     key: "topClimb",     fmt: "@" },
+  { label: "Avg tower points",              key: "towerAvg",     fmt: "0.0", agg: "sum", better: "high" },
+  { label: "Defense played %",              key: "defensePct",   fmt: "0%" },
+  { label: "Avg foul points given up",      key: "foulAvg",      fmt: "0.0", agg: "sum", better: "low" },
+  { label: "Avg driver rating (1 to 5)",    key: "driverAvg",    fmt: "0.0", agg: "avg", better: "high" },
+  { label: "Matches with robot issues",     key: "issues",       fmt: "0",   agg: "sum", better: "low" },
+  { label: "Usual role when hub inactive",  key: "role",         fmt: "@" },
+  { label: "Drivetrain (pit)",              key: "drive",        fmt: "@" },
+  { label: "Shooter (pit)",                 key: "shooter",      fmt: "@" },
+  { label: "Fuel capacity (pit)",           key: "capacity",     fmt: "0" }
+];
+
+/** Pure: one team's preview numbers from Match Data rows (+ its pit row). */
+function teamPreviewStats_(team, rows, pit) {
+  const L = rows.filter(r => Number(r.team) === Number(team));
+  const p = pit || {};
+  const base = { team: team, n: L.length, drive: p.drive || "", shooter: p.shooter || "",
+                 capacity: (p.capacity === "" || p.capacity == null) ? "" : p.capacity };
+  if (!L.length) return base;
+  const num = (r, f) => Number(r[f]) || 0;
+  const avg = f => L.reduce((t, r) => t + f(r), 0) / L.length;
+  const max = f => Math.max.apply(null, L.map(f));
+  const tot = r => num(r, "autoFuel") + num(r, "teleFuel") + num(r, "endFuel");
+  const tower = r => (r.autoClimb === "Yes" ? AUTO_CLIMB_PTS : 0) + (CLIMB_PTS[r.climb] || 0);
+  const roles = {};
+  L.forEach(r => ["s1Role", "s2Role", "s3Role", "s4Role"].forEach(k => { if (r[k]) roles[r[k]] = (roles[r[k]] || 0) + 1; }));
+  const topRole = Object.keys(roles).sort((a, b) => roles[b] - roles[a])[0];
+  const climbs = L.map(r => r.climb);
+  return Object.assign(base, {
+    avgPts: avg(r => num(r, "estPts")), bestPts: max(r => num(r, "estPts")),
+    autoAvg: avg(r => num(r, "autoFuel")), autoBest: max(r => num(r, "autoFuel")),
+    teleAvg: avg(r => num(r, "teleFuel")), teleBest: max(r => num(r, "teleFuel")),
+    endAvg: avg(r => num(r, "endFuel")), endBest: max(r => num(r, "endFuel")),
+    totAvg: avg(tot), totBest: max(tot),
+    autoClimbPct: L.filter(r => r.autoClimb === "Yes").length / L.length,
+    climbPct: L.filter(r => ["L1", "L2", "L3"].indexOf(r.climb) >= 0).length / L.length,
+    topClimb: ["L3", "L2", "L1"].find(c => climbs.indexOf(c) >= 0) || "None",
+    towerAvg: avg(tower),
+    defensePct: L.filter(r => num(r, "defense") > 0).length / L.length,
+    foulAvg: avg(r => num(r, "minor") * 5 + num(r, "major") * 15),
+    driverAvg: avg(r => num(r, "driver")),
+    issues: L.filter(r => r.robot && r.robot !== "ok").length,
+    role: topRole ? (ROLE_LABELS[topRole] || topRole) : ""
+  });
+}
+
+/**
+ * Pure: red and blue team lists + Match Data rows + Pit rows -> the preview table.
+ * Row shape: [label, red1, red2, red3, red alliance, blue alliance, blue1, blue2, blue3].
+ */
+function computePreview_(redTeams, blueTeams, rows, pits) {
+  const pitBy = {};
+  pits.forEach(p => { pitBy[Number(p.team)] = p; });
+  const stats = t => (t === "" || t == null) ? null : teamPreviewStats_(t, rows, pitBy[Number(t)]);
+  const R = redTeams.map(stats), B = blueTeams.map(stats);
+  const val = (st, key) => (!st || st[key] == null) ? "" : st[key];
+  const agg = (side, def) => {
+    if (!def.agg) return "";
+    const vals = side.filter(st => st && st.n > 0).map(st => Number(st[def.key]) || 0);
+    if (!vals.length) return "";
+    const sum = vals.reduce((t, x) => t + x, 0);
+    return def.agg === "avg" ? sum / vals.length : sum;
+  };
+  const table = [], formats = [], better = [];
+  PREVIEW_STATS.forEach(def => {
+    const ra = agg(R, def), ba = agg(B, def);
+    table.push([def.label, val(R[0], def.key), val(R[1], def.key), val(R[2], def.key), ra, ba,
+                val(B[0], def.key), val(B[1], def.key), val(B[2], def.key)]);
+    formats.push(def.fmt);
+    better.push(!def.better || ra === "" || ba === "" || ra === ba ? null
+      : ((def.better === "high") === (ra > ba) ? "red" : "blue"));
+  });
+  const total = (side, key) => side.filter(st => st && st.n > 0).reduce((t, st) => t + (Number(st[key]) || 0), 0);
+  const sum = { redPts: total(R, "avgPts"), bluePts: total(B, "avgPts"), redFuel: total(R, "totAvg"), blueFuel: total(B, "totAvg"),
+                redTower: total(R, "towerAvg"), blueTower: total(B, "towerAvg") };
+  const hasData = side => side.some(st => st && st.n > 0);
+  const yn = (side, ok) => !hasData(side) ? "" : ok ? "Yes" : "No";
+  const rp = (label, r, b) => { table.push([label, "", "", "", r, b, "", "", ""]); formats.push("@"); better.push(null); };
+  rp("On pace for Energized RP (" + RP_ENERGIZED + " fuel)", yn(R, sum.redFuel >= RP_ENERGIZED), yn(B, sum.blueFuel >= RP_ENERGIZED));
+  rp("On pace for Supercharged RP (" + RP_SUPERCHARGED + " fuel)", yn(R, sum.redFuel >= RP_SUPERCHARGED), yn(B, sum.blueFuel >= RP_SUPERCHARGED));
+  rp("On pace for Traversal RP (" + RP_TRAVERSAL + " tower points)", yn(R, sum.redTower >= RP_TRAVERSAL), yn(B, sum.blueTower >= RP_TRAVERSAL));
+
+  const all = R.concat(B).filter(Boolean);
+  const noData = all.filter(st => st.n === 0).map(st => st.team);
+  let headline;
+  if (!all.length) headline = "Pick a match, or type team numbers in row " + PV_TEAM_ROW + ".";
+  else if (all.every(st => st.n === 0)) headline = "No scouting data yet for these teams.";
+  else {
+    const d = sum.redPts - sum.bluePts;
+    headline = "Projected score from scouting averages: Red " + sum.redPts.toFixed(1) + ", Blue " + sum.bluePts.toFixed(1) + ". " +
+      (Math.abs(d) < 0.05 ? "Even." : (d > 0 ? "Red" : "Blue") + " favored by " + Math.abs(d).toFixed(1) + ".");
+    if (noData.length) headline += " No data for " + noData.join(", ") + ", so that alliance reads low.";
+  }
+  return { table: table, formats: formats, better: better, headline: headline, summary: sum };
+}
+
+function previewSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  return ss.getSheetByName(PREVIEW_SHEET) || ss.insertSheet(PREVIEW_SHEET, 1);
+}
+
+/**
+ * Draws the Match Preview tab from the Schedule, Match Data and Pit Data tabs (no internet needed,
+ * so it also runs from the dropdowns). fillTeams = true replaces the team row with the picked match.
+ */
+function buildPreview_(fillTeams) {
+  const ss = SpreadsheetApp.getActive();
+  const sh = previewSheet_();
+  const read = (name, cols) => { const t = ss.getSheetByName(name); return t ? readTable_(t, cols) : []; };
+  const matches = read(MATCH_SHEET, MATCH_COLS), pits = read(PIT_SHEET, PIT_COLS), sched = read(SCHED_SHEET, SCHED_COLS);
+
+  // controls
+  sh.getRange("A1:A3").setValues([["Event"], ["Match #"], ["Stats from"]]).setFontWeight("bold");
+  const events = Array.from(new Set(sched.map(r => r.event).concat(matches.map(r => r.event)).filter(String))).sort();
+  if (events.length) setDropdown_(sh.getRange("B1"), events);
+  setDropdown_(sh.getRange("B3"), ["This event", "All events"]);
+  sh.getRange("B1:B3").setBackground("#f6efd9").setHorizontalAlignment("left");
+  const event = String(sh.getRange("B1").getValue() || "");
+  const evSched = sched.filter(r => r.event === event).sort((a, b) => a.match - b.match);
+  const mCell = sh.getRange("B2");
+  if (evSched.length) {
+    mCell.setDataValidation(SpreadsheetApp.newDataValidation()
+      .requireValueInList(evSched.map(r => String(r.match)), true).setAllowInvalid(true).build());
+    if (mCell.getValue() === "") mCell.setValue(evSched[0].match);
+  } else {
+    mCell.clearDataValidations();
+  }
+  const matchNo = Number(mCell.getValue()) || "";
+
+  // teams: from the schedule when a match is picked, otherwise whatever is typed in the team row
+  const cur = sh.getRange(PV_TEAM_ROW, 2, 1, 8).getValues()[0];
+  let red = [cur[0], cur[1], cur[2]], blue = [cur[5], cur[6], cur[7]];
+  const blank = red.concat(blue).every(v => v === "" || v == null);
+  const row = evSched.filter(r => Number(r.match) === matchNo)[0];
+  if ((fillTeams || blank) && row) {
+    red = [row.red1, row.red2, row.red3]; blue = [row.blue1, row.blue2, row.blue3];
+  } else if (fillTeams && evSched.length && !row) {
+    red = ["", "", ""]; blue = ["", "", ""];
+  }
+
+  const statsRows = sh.getRange("B3").getValue() === "All events" ? matches : matches.filter(r => r.event === event);
+  const pv = computePreview_(red, blue, statsRows, pits);
+
+  let note = pv.headline;
+  if (!evSched.length) note += " No schedule for " + (event || "this event") + " yet: type the six team numbers in row " + PV_TEAM_ROW + ".";
+  else if (!row && matchNo) note += " Match " + matchNo + " isn't in the schedule.";
+  sh.getRange("A4").setValue(note).setFontWeight("bold");
+  sh.getRange("D1").setValue("Type over a team number in row " + PV_TEAM_ROW + " to try a different lineup.").setFontColor("#6d5f62");
+
+  // header rows
+  const RED = "#d6333d", BLUE = "#2c63d6";
+  sh.getRange(PV_TEAM_ROW - 1, 1, 2, 9).setValues([
+    ["", "Red 1", "Red 2", "Red 3", "Red alliance", "Blue alliance", "Blue 1", "Blue 2", "Blue 3"],
+    ["Team #", red[0], red[1], red[2], "RED", "BLUE", blue[0], blue[1], blue[2]]
+  ]).setFontWeight("bold").setHorizontalAlignment("center");
+  sh.getRange(PV_TEAM_ROW - 1, 2, 1, 4).setBackground(RED).setFontColor("#ffffff");
+  sh.getRange(PV_TEAM_ROW - 1, 6, 1, 4).setBackground(BLUE).setFontColor("#ffffff");
+  sh.getRange(PV_TEAM_ROW, 2, 1, 4).setBackground("#f5cfd2").setFontSize(12).setNumberFormat("0");
+  sh.getRange(PV_TEAM_ROW, 6, 1, 4).setBackground("#cfdcf7").setFontSize(12).setNumberFormat("0");
+  sh.getRange(PV_TEAM_ROW, 1).setHorizontalAlignment("left");
+
+  // stats table
+  const n = pv.table.length;
+  sh.getRange(PV_FIRST_STAT_ROW, 1, Math.max(1, sh.getMaxRows() - PV_FIRST_STAT_ROW + 1), 9).clear();
+  const body = sh.getRange(PV_FIRST_STAT_ROW, 1, n, 9);
+  body.setValues(pv.table);
+  body.setNumberFormats(pv.formats.map(f => ["@", f, f, f, f, f, f, f, f]));
+  body.setBackgrounds(pv.better.map(b => [
+    "#ffffff", "#fbe9ea", "#fbe9ea", "#fbe9ea", b === "red" ? "#f6d77a" : "#f5cfd2",
+    b === "blue" ? "#f6d77a" : "#cfdcf7", "#e8eefb", "#e8eefb", "#e8eefb"
+  ]));
+  body.setFontWeights(pv.better.map(b => [
+    "bold", "normal", "normal", "normal", b === "red" ? "bold" : "normal", b === "blue" ? "bold" : "normal", "normal", "normal", "normal"
+  ]));
+  sh.getRange(PV_FIRST_STAT_ROW, 2, n, 8).setHorizontalAlignment("center");
+  sh.getRange(PV_FIRST_STAT_ROW + n + 1, 1).setValue(
+    "Gold marks the alliance with the edge on that stat. Alliance columns add up the three robots (driver rating is averaged). " +
+    "Est. points = fuel + tower points. RP rows use regional thresholds and may not apply at offseason events.").setFontColor("#6d5f62");
+  sh.setColumnWidth(1, 250);
+  sh.setFrozenRows(PV_TEAM_ROW);
 }

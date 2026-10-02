@@ -6,10 +6,12 @@ every 5 minutes and keeps a sortable **Team Averages** tab.
 | Tab | What's in it |
 | --- | --- |
 | Team Averages | One row per team: matches, avg/best estimated points, fuel by period, climb rates, top climb, defense %, foul points, driver rating, robot issues, plus drivetrain/shooter/capacity from pit scouting |
+| Match Preview | Pick an event and match number to see the six robots side by side, Red vs Blue, with alliance totals and a projected score |
 | Fuel Accuracy | For each played qualification match and alliance: scouted vs official fuel (auto, teleop, end game, total) from The Blue Alliance, with % error |
 | Scouter Accuracy | One row per scouter: average absolute fuel % error (total, auto, teleop, end game) across the complete alliances they helped scout, most accurate first |
 | Match Data | Every match report, including per-shift fuel and inactive-hub roles |
 | Pit Data | Every pit report |
+| Schedule | Qualification schedule per event (from the app's Load schedule and from The Blue Alliance); feeds Match Preview |
 
 At the top of Team Averages, three dropdowns choose the **event**, the **column to sort by** and the **order**.
 The sheet re-sorts as soon as you change one. Use **Scouting > Sync now** for an instant refresh.
@@ -27,6 +29,18 @@ Use the Google account that created the Firebase project (it must be an owner or
 6. Google asks for permission. Click **Review permissions**, pick your account, then **Advanced > Go to (project name)** and **Allow**.
    The warning appears because this is your own unpublished script.
 7. Return to the sheet. The Team Averages tab fills in, and a sync runs every 5 minutes from now on.
+
+## Match Preview
+
+- Choose the **Event** and **Match #** at the top. The six team numbers fill in from the Schedule tab.
+- No schedule yet (or planning a playoff alliance)? Type team numbers straight into the team row; the table updates.
+- **Stats from** switches between this event only and all events (handy early in an event).
+- Per robot: matches scouted, avg/best estimated points, avg/best fuel for auto, teleop, end game and total,
+  auto and end game climb %, top climb, avg tower points, defense %, foul points, driver rating, robot issues,
+  usual role when their hub is inactive, and drivetrain/shooter/capacity from pit scouting.
+- Alliance columns add up the three robots (driver rating is averaged). Gold marks the alliance with the edge.
+- The projected score is the sum of each robot's average estimated points (fuel + tower). It ignores fouls and defense.
+- RP rows use the regional thresholds (100 and 360 fuel, 50 tower points); edit `RP_*` in `Code.gs` if they differ.
 
 ## Fuel Accuracy
 
