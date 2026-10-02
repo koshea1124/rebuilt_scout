@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>RoboWarriors REBUILT Scout</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Roboto:wght@400;500;700&display=swap">
 <style>
 /* Layout: phone-first scouting tool. Sticky top bar with event + tabs; one panel per tab; big tap targets in the stands. */
 :root{
@@ -20,9 +20,9 @@
   --fg:#1d1416; --muted:#6d5f62; --accent:#c4a02d; --accent-ink:#2a1f00;
   --brand:#810f27; --brand-ink:#ffffff; --brand-press:#810f27; --gold:#c4a02d; --heading:#810f27;
   --red:#d6333d; --blue:#2c63d6; --good:#1f8a4c; --warn:#a86a00;
-  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
-  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --display:"Russo One","Arial Black",Arial,sans-serif;
+  --body:"Roboto",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --mono:"Roboto",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
   --r:10px;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -42,19 +42,19 @@ body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--body);margin:0}
 header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--brand);color:var(--brand-ink);border-bottom:3px solid var(--gold)}
 .bar-in{max-width:760px;margin:0 auto;padding:10px 16px 0;display:grid;gap:8px}
 .brand{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.brand h1{font:700 22px/1 var(--display);letter-spacing:.02em;margin:0;text-transform:uppercase}
+.brand h1{font:400 21px/1 var(--display);letter-spacing:.02em;margin:0;text-transform:uppercase}
 .brand h1 span{color:var(--gold)}
 .event{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.06em}
 .event input{width:110px;font:500 14px var(--mono);text-transform:uppercase;background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.35);color:#fff}
 .event input::placeholder{color:rgba(255,255,255,.55)}
 nav.tabs{display:flex;gap:4px}
-nav.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:10px 4px;font:700 17px var(--display);letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.7);cursor:pointer}
+nav.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:10px 4px;font:700 15px var(--body);letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.7);cursor:pointer}
 nav.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--gold)}
 .status{font-size:12px;color:var(--muted);margin:10px 0 0}
 .status.err{color:var(--red)}
 
 section.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:12px;display:grid;gap:12px}
-h2{color:var(--heading);font:700 18px/1.1 var(--display);letter-spacing:.05em;text-transform:uppercase;margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2{color:var(--heading);font:400 17px/1.15 var(--display);letter-spacing:.03em;text-transform:uppercase;margin:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 h2 small{font:500 12px var(--body);letter-spacing:0;text-transform:none;color:var(--muted)}
 label.f{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:0}
 input,select,textarea{font:15px var(--body);color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%}
@@ -74,7 +74,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .counter .lbl{font-size:13px;font-weight:600}
 .counter .lbl small{display:block;font-weight:400;color:var(--muted);font-size:11px}
 .counter .val{font:500 30px/1 var(--mono);text-align:center;font-variant-numeric:tabular-nums;min-width:2.2ch}
-.counter button{min-width:52px;min-height:52px;border-radius:10px;border:0;font:700 20px var(--display);cursor:pointer}
+.counter button{min-width:52px;min-height:52px;border-radius:10px;border:0;font:700 19px var(--body);cursor:pointer}
 .counter .minus{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
 .counter .plus{background:var(--accent);color:var(--accent-ink)}
 .counter .plus5{background:var(--surface);color:var(--fg);border:1px solid var(--accent)}
@@ -84,7 +84,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .counter.small button{min-width:44px;min-height:44px;font-size:18px}
 
 .actions{display:flex;gap:10px;flex-wrap:wrap}
-.btn{min-height:48px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:700 17px var(--display);letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.btn{min-height:48px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:700 15px var(--body);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 .btn.primary{background:var(--brand-press);border-color:var(--brand-press);color:var(--brand-ink);flex:1}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:10;max-width:calc(100% - 32px)}
@@ -121,7 +121,7 @@ img{max-width:100%}
 .gate{max-width:420px;margin:6vh auto 0;padding-inline:16px;display:grid;gap:14px;text-align:center}
 .gate-logo{width:180px;height:auto;margin:0 auto;display:block}
 #loading .gate-logo{width:140px}
-.gate h1{font:700 34px/1 var(--display);text-transform:uppercase;letter-spacing:.03em;margin:0}
+.gate h1{font:400 32px/1.05 var(--display);text-transform:uppercase;letter-spacing:.03em;margin:0}
 .gate h1 span{color:var(--gold)}
 .gate p{color:var(--muted);margin:0}
 .gate input{text-align:center;font:500 20px var(--mono)}
