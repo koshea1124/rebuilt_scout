@@ -24,6 +24,15 @@ All data is shared live between every scout's phone through Firebase Firestore.
 
 No signal? Keep scouting. Reports save on the phone and upload automatically when it reconnects. The status line at the top shows how many are waiting.
 
+## Match schedule (The Blue Alliance)
+
+1. Set the event code at the top to the event's Blue Alliance key, for example `2026CABL` for Beach Blitz.
+2. Teams tab > **Load schedule** (needs internet; usually posted the morning of the event).
+3. Each scout picks their robot position (Red 1 to Blue 3) on the Match tab. Typing a match number fills in the team and alliance.
+4. The schedule card shows which played matches are missing reports.
+
+The Blue Alliance read key is saved once in the app (Teams tab > **Blue Alliance key**) and stored in Firestore `settings/tba`, never in this repo.
+
 ## Files
 
 | File | Purpose |

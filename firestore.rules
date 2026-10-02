@@ -29,5 +29,15 @@ service cloud.firestore {
     match /pit/{id} {
       allow read, write: if isScout();
     }
+
+    // Match schedules loaded from The Blue Alliance, one document per event code.
+    match /schedules/{id} {
+      allow read, write: if isScout();
+    }
+
+    // Shared app settings (The Blue Alliance read key).
+    match /settings/{id} {
+      allow read, write: if isScout();
+    }
   }
 }
