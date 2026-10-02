@@ -115,7 +115,13 @@ function fetchCollection_(name) {
       muteHttpExceptions: true
     });
     const code = res.getResponseCode();
-    if (code === 403) throw new Error("Firebase refused access. Run this from the Google account that owns the Firebase project, or add this account to the project in Firebase > Project settings > Users and permissions.");
+    if (code === 403 || code === 401) {
+      let why = "";
+      try { why = JSON.parse(res.getContentText()).error.message; } catch (e) { why = res.getContentText().slice(0, 300); }
+      throw new Error("Firebase refused access (" + code + "). Google says: " + why +
+        " | Checks: appsscript.json must include the datastore scope, and the account running this (" +
+        Session.getEffectiveUser().getEmail() + ") must be an owner or editor of the Firebase project.");
+    }
     if (code !== 200) throw new Error("Firebase returned " + code + ": " + res.getContentText().slice(0, 200));
     const body = JSON.parse(res.getContentText());
     (body.documents || []).forEach(d => out.push(fromFirestoreFields_(d.fields || {})));
