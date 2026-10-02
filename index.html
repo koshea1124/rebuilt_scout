@@ -83,8 +83,12 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .hubpill{display:inline-block;margin-right:8px;padding:2px 8px;border-radius:99px;font:700 11px var(--body);letter-spacing:.04em;text-transform:uppercase;vertical-align:1px}
 .hubpill.on{background:var(--good);color:#fff}
 .hubpill.no{background:var(--red);color:#fff}
-.counter.fuel{grid-template-columns:1fr auto auto auto auto}
-@media (max-width:420px){.counter.fuel{grid-template-columns:auto 1fr auto auto}.counter.fuel .lbl{grid-column:1/-1}}
+.counter.fuel{grid-template-columns:1fr auto;row-gap:10px}
+.counter.fuel .val{font-size:34px;text-align:right;padding-right:6px}
+.counter.fuel .pad{grid-column:1/-1;display:flex;gap:5px}
+.counter.fuel .pad button{flex:1 1 0;min-width:0;min-height:50px;padding:0;font:700 16px var(--body)}
+.counter.fuel .pad .sep{flex:0 0 4px}
+@media (max-width:360px){.counter.fuel .pad{gap:3px}.counter.fuel .pad button{font-size:14px}}
 .counter.small .val{font-size:22px}
 .counter.small button{min-width:44px;min-height:44px;font-size:18px}
 
@@ -192,7 +196,7 @@ img{max-width:100%}
           <button type="button" data-v="no" aria-pressed="false">No</button>
         </div>
         <p class="note">Yes: their hub is inactive in shifts 1 and 3. No: inactive in shifts 2 and 4. Look at the field display when auto ends.</p>
-        <div class="counter fuel" data-count="autoFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <div class="counter fuel" data-count="autoFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><div class="val">0</div><div class="pad"><button type="button" class="minus" data-d="-5" aria-label="Minus five">−5</button><button type="button" class="minus" data-d="-1" aria-label="Minus one">−1</button><span class="sep"></span><button type="button" class="plus" data-d="1" aria-label="Plus one">+1</button><button type="button" class="plus5" data-d="5" aria-label="Plus five">+5</button><button type="button" class="plus5" data-d="10" aria-label="Plus ten">+10</button><button type="button" class="plus5" data-d="25" aria-label="Plus twenty-five">+25</button><button type="button" class="plus5" data-d="50" aria-label="Plus fifty">+50</button></div></div>
         <div class="seg" data-field="autoClimb">
           <button type="button" data-v="none" aria-pressed="true">No auto climb</button>
           <button type="button" data-v="L1" aria-pressed="false">Tower L1 (15)</button>
@@ -202,12 +206,12 @@ img{max-width:100%}
       <p class="note" style="margin:14px 2px 0">Teleop: count only fuel that lands in their alliance's hub while it is active. Both hubs are active during the transition shift; after that, each alliance's hub is inactive for two of the four shifts.</p>
       <section class="card">
         <h2>Transition shift <small>2:20 to 2:10</small></h2>
-        <div class="counter fuel" data-count="transFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <div class="counter fuel" data-count="transFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><div class="val">0</div><div class="pad"><button type="button" class="minus" data-d="-5" aria-label="Minus five">−5</button><button type="button" class="minus" data-d="-1" aria-label="Minus one">−1</button><span class="sep"></span><button type="button" class="plus" data-d="1" aria-label="Plus one">+1</button><button type="button" class="plus5" data-d="5" aria-label="Plus five">+5</button><button type="button" class="plus5" data-d="10" aria-label="Plus ten">+10</button><button type="button" class="plus5" data-d="25" aria-label="Plus twenty-five">+25</button><button type="button" class="plus5" data-d="50" aria-label="Plus fifty">+50</button></div></div>
       </section>
 
       <section class="card">
         <h2>Teleop shift 1 <small><span class="hubpill" data-hub="1" hidden></span>2:10 to 1:45</small></h2>
-        <div class="counter fuel" data-count="s1Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <div class="counter fuel" data-count="s1Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><div class="val">0</div><div class="pad"><button type="button" class="minus" data-d="-5" aria-label="Minus five">−5</button><button type="button" class="minus" data-d="-1" aria-label="Minus one">−1</button><span class="sep"></span><button type="button" class="plus" data-d="1" aria-label="Plus one">+1</button><button type="button" class="plus5" data-d="5" aria-label="Plus five">+5</button><button type="button" class="plus5" data-d="10" aria-label="Plus ten">+10</button><button type="button" class="plus5" data-d="25" aria-label="Plus twenty-five">+25</button><button type="button" class="plus5" data-d="50" aria-label="Plus fifty">+50</button></div></div>
         <label class="f">Hub Inactive - What did they do?</label>
         <div class="seg" data-field="s1Role">
           <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
@@ -220,7 +224,7 @@ img{max-width:100%}
 
       <section class="card">
         <h2>Teleop shift 2 <small><span class="hubpill" data-hub="2" hidden></span>1:45 to 1:20</small></h2>
-        <div class="counter fuel" data-count="s2Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <div class="counter fuel" data-count="s2Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><div class="val">0</div><div class="pad"><button type="button" class="minus" data-d="-5" aria-label="Minus five">−5</button><button type="button" class="minus" data-d="-1" aria-label="Minus one">−1</button><span class="sep"></span><button type="button" class="plus" data-d="1" aria-label="Plus one">+1</button><button type="button" class="plus5" data-d="5" aria-label="Plus five">+5</button><button type="button" class="plus5" data-d="10" aria-label="Plus ten">+10</button><button type="button" class="plus5" data-d="25" aria-label="Plus twenty-five">+25</button><button type="button" class="plus5" data-d="50" aria-label="Plus fifty">+50</button></div></div>
         <label class="f">Hub Inactive - What did they do?</label>
         <div class="seg" data-field="s2Role">
           <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
@@ -233,7 +237,7 @@ img{max-width:100%}
 
       <section class="card">
         <h2>Teleop shift 3 <small><span class="hubpill" data-hub="3" hidden></span>1:20 to 0:55</small></h2>
-        <div class="counter fuel" data-count="s3Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <div class="counter fuel" data-count="s3Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><div class="val">0</div><div class="pad"><button type="button" class="minus" data-d="-5" aria-label="Minus five">−5</button><button type="button" class="minus" data-d="-1" aria-label="Minus one">−1</button><span class="sep"></span><button type="button" class="plus" data-d="1" aria-label="Plus one">+1</button><button type="button" class="plus5" data-d="5" aria-label="Plus five">+5</button><button type="button" class="plus5" data-d="10" aria-label="Plus ten">+10</button><button type="button" class="plus5" data-d="25" aria-label="Plus twenty-five">+25</button><button type="button" class="plus5" data-d="50" aria-label="Plus fifty">+50</button></div></div>
         <label class="f">Hub Inactive - What did they do?</label>
         <div class="seg" data-field="s3Role">
           <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
@@ -246,7 +250,7 @@ img{max-width:100%}
 
       <section class="card">
         <h2>Teleop shift 4 <small><span class="hubpill" data-hub="4" hidden></span>0:55 to 0:30</small></h2>
-        <div class="counter fuel" data-count="s4Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <div class="counter fuel" data-count="s4Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><div class="val">0</div><div class="pad"><button type="button" class="minus" data-d="-5" aria-label="Minus five">−5</button><button type="button" class="minus" data-d="-1" aria-label="Minus one">−1</button><span class="sep"></span><button type="button" class="plus" data-d="1" aria-label="Plus one">+1</button><button type="button" class="plus5" data-d="5" aria-label="Plus five">+5</button><button type="button" class="plus5" data-d="10" aria-label="Plus ten">+10</button><button type="button" class="plus5" data-d="25" aria-label="Plus twenty-five">+25</button><button type="button" class="plus5" data-d="50" aria-label="Plus fifty">+50</button></div></div>
         <label class="f">Hub Inactive - What did they do?</label>
         <div class="seg" data-field="s4Role">
           <button type="button" data-v="defense" aria-pressed="false">Played defense</button>
@@ -259,7 +263,7 @@ img{max-width:100%}
 
       <section class="card">
         <h2>End game <small>0:30</small></h2>
-        <div class="counter fuel" data-count="endFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
+        <div class="counter fuel" data-count="endFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><div class="val">0</div><div class="pad"><button type="button" class="minus" data-d="-5" aria-label="Minus five">−5</button><button type="button" class="minus" data-d="-1" aria-label="Minus one">−1</button><span class="sep"></span><button type="button" class="plus" data-d="1" aria-label="Plus one">+1</button><button type="button" class="plus5" data-d="5" aria-label="Plus five">+5</button><button type="button" class="plus5" data-d="10" aria-label="Plus ten">+10</button><button type="button" class="plus5" data-d="25" aria-label="Plus twenty-five">+25</button><button type="button" class="plus5" data-d="50" aria-label="Plus fifty">+50</button></div></div>
         <label class="f">Tower climb</label>
         <div class="seg" data-field="climb">
           <button type="button" data-v="none" aria-pressed="true">None</button>
@@ -289,7 +293,7 @@ img{max-width:100%}
           <button type="button" data-v="disabled" aria-pressed="false">Disabled / no show</button>
           <button type="button" data-v="tipped" aria-pressed="false">Tipped</button>
         </div>
-        <div class="row">
+        <div class="row" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr))">
           <div class="counter small" data-count="minor"><div class="lbl">Minor fouls<small>5 pts each</small></div><button type="button" class="minus">−</button><div class="val">0</div><button type="button" class="plus">+</button></div>
           <div class="counter small" data-count="major"><div class="lbl">Major fouls<small>15 pts each</small></div><button type="button" class="minus">−</button><div class="val">0</div><button type="button" class="plus">+</button></div>
         </div>
@@ -419,7 +423,7 @@ if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").ca
   $$(".counter[data-count]").forEach(c=>c.addEventListener("click",e=>{
     const b = e.target.closest("button"); if(!b) return;
     const k = c.dataset.count;
-    const d = b.classList.contains("plus5") ? 5 : b.classList.contains("plus") ? 1 : -1;
+    const d = b.dataset.d ? Number(b.dataset.d) : b.classList.contains("plus5") ? 5 : b.classList.contains("plus") ? 1 : -1;
     counts[k] = Math.max(0, Math.min(500, counts[k] + d));
     paintCounts();
   }));
