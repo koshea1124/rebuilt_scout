@@ -78,6 +78,11 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .counter .minus{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
 .counter .plus{background:var(--accent);color:var(--accent-ink)}
 .counter .plus5{background:var(--surface);color:var(--fg);border:1px solid var(--accent)}
+.counter.off,.seg.off{opacity:.38}
+.counter.off button,.seg.off button{cursor:not-allowed}
+.hubpill{display:inline-block;margin-right:8px;padding:2px 8px;border-radius:99px;font:700 11px var(--body);letter-spacing:.04em;text-transform:uppercase;vertical-align:1px}
+.hubpill.on{background:var(--good);color:#fff}
+.hubpill.no{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
 .counter.fuel{grid-template-columns:1fr auto auto auto auto}
 @media (max-width:420px){.counter.fuel{grid-template-columns:auto 1fr auto auto}.counter.fuel .lbl{grid-column:1/-1}}
 .counter.small .val{font-size:22px}
@@ -181,6 +186,12 @@ img{max-width:100%}
 
       <section class="card">
         <h2>Auto <small>0:20</small></h2>
+        <label class="f">Did their alliance win auto?</label>
+        <div class="seg" data-field="wonAuto">
+          <button type="button" data-v="yes" aria-pressed="false">Yes</button>
+          <button type="button" data-v="no" aria-pressed="false">No</button>
+        </div>
+        <p class="note">Yes: their hub is inactive in shifts 1 and 3. No: inactive in shifts 2 and 4. Look at the field display when auto ends.</p>
         <div class="counter fuel" data-count="autoFuel"><div class="lbl">Fuel scored<small>Both hubs active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
         <div class="seg" data-field="autoClimb">
           <button type="button" data-v="none" aria-pressed="true">No auto climb</button>
@@ -195,7 +206,7 @@ img{max-width:100%}
       </section>
 
       <section class="card">
-        <h2>Teleop shift 1 <small>2:10 to 1:45</small></h2>
+        <h2>Teleop shift 1 <small><span class="hubpill" data-hub="1" hidden></span>2:10 to 1:45</small></h2>
         <div class="counter fuel" data-count="s1Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
         <label class="f">If their hub was inactive, what did they do?</label>
         <div class="seg" data-field="s1Role">
@@ -207,7 +218,7 @@ img{max-width:100%}
       </section>
 
       <section class="card">
-        <h2>Teleop shift 2 <small>1:45 to 1:20</small></h2>
+        <h2>Teleop shift 2 <small><span class="hubpill" data-hub="2" hidden></span>1:45 to 1:20</small></h2>
         <div class="counter fuel" data-count="s2Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
         <label class="f">If their hub was inactive, what did they do?</label>
         <div class="seg" data-field="s2Role">
@@ -219,7 +230,7 @@ img{max-width:100%}
       </section>
 
       <section class="card">
-        <h2>Teleop shift 3 <small>1:20 to 0:55</small></h2>
+        <h2>Teleop shift 3 <small><span class="hubpill" data-hub="3" hidden></span>1:20 to 0:55</small></h2>
         <div class="counter fuel" data-count="s3Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
         <label class="f">If their hub was inactive, what did they do?</label>
         <div class="seg" data-field="s3Role">
@@ -231,7 +242,7 @@ img{max-width:100%}
       </section>
 
       <section class="card">
-        <h2>Teleop shift 4 <small>0:55 to 0:30</small></h2>
+        <h2>Teleop shift 4 <small><span class="hubpill" data-hub="4" hidden></span>0:55 to 0:30</small></h2>
         <div class="counter fuel" data-count="s4Fuel"><div class="lbl">Fuel scored<small>Their hub must be active</small></div><button type="button" class="minus" aria-label="Minus one">−1</button><div class="val">0</div><button type="button" class="plus" aria-label="Plus one">+1</button><button type="button" class="plus5" aria-label="Plus five">+5</button></div>
         <label class="f">If their hub was inactive, what did they do?</label>
         <div class="seg" data-field="s4Role">
@@ -409,6 +420,32 @@ if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").ca
     paintCounts();
   }));
 
+  /* ---------- hub active / inactive by auto result ---------- */
+  function applyHubState(){
+    const won = segValue(mf, "wonAuto");
+    const inactive = won==="yes" ? [1,3] : won==="no" ? [2,4] : [];
+    let cleared = false;
+    SHIFTS.forEach(n=>{
+      const off = inactive.includes(n);
+      const counter = mf.querySelector(`.counter[data-count="s${n}Fuel"]`);
+      const role = mf.querySelector(`.seg[data-field="s${n}Role"]`);
+      const pill = mf.querySelector(`.hubpill[data-hub="${n}"]`);
+      // inactive shift: fuel can't score, so lock the counter; the "what did they do" choices stay open
+      counter.classList.toggle("off", off);
+      counter.querySelectorAll("button").forEach(b=>b.disabled = off);
+      if (off && counts["s"+n+"Fuel"]) { counts["s"+n+"Fuel"] = 0; cleared = true; }
+      // active shift: "if their hub was inactive" doesn't apply, so lock those choices
+      const roleOff = !!won && !off;
+      role.classList.toggle("off", roleOff);
+      role.querySelectorAll("button").forEach(b=>b.disabled = roleOff);
+      if (roleOff) setSeg(mf, "s"+n+"Role", null);
+      pill.hidden = !won;
+      pill.textContent = off ? "Hub inactive" : "Hub active";
+      pill.className = "hubpill " + (off ? "no" : "on");
+    });
+    if (cleared) { paintCounts(); toast("Cleared fuel from the shifts where their hub is inactive."); }
+  }
+
   /* ---------- toast + status ---------- */
   let tt; function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true, 2600); }
   function status(msg, err){ const s=$("#status"); s.textContent=msg; s.classList.toggle("err", !!err); }
@@ -420,9 +457,11 @@ if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").ca
     setSeg(mf,"autoClimb","none"); SHIFTS.forEach(n=>setSeg(mf,"s"+n+"Role",null)); setSeg(mf,"climb","none");
     setSeg(mf,"defense","0"); setSeg(mf,"driver","3"); setSeg(mf,"robot","ok");
     $("#mNotes").value = "";
+    setSeg(mf,"wonAuto",null); applyHubState();
     if(!keepSetup){ $("#mTeam").value=""; setSeg(mf,"alliance",null); }
   }
   $("#mReset").addEventListener("click",()=>resetMatch(false));
+  mf.querySelector('.seg[data-field="wonAuto"]').addEventListener("click", e=>{ if(e.target.closest("button")) applyHubState(); });
   mf.addEventListener("submit", async e=>{
     e.preventDefault();
     const ev = cleanEvent(); const match = parseInt($("#mMatch").value,10); const team = parseInt($("#mTeam").value,10);
@@ -432,6 +471,7 @@ if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").ca
     if(!alliance){ toast("Pick Red or Blue alliance."); return; }
         const rec = { event:ev, match, team, alliance, scout,
       autoFuel:counts.autoFuel, autoClimb:segValue(mf,"autoClimb")==="L1",
+      wonAuto:segValue(mf,"wonAuto")||"",
       shiftFuel:SHIFTS.map(n=>counts["s"+n+"Fuel"]), shiftRole:SHIFTS.map(n=>segValue(mf,"s"+n+"Role")||""),
       transFuel:counts.transFuel,
       teleFuel:counts.transFuel + SHIFTS.reduce((t,n)=>t+counts["s"+n+"Fuel"],0),
